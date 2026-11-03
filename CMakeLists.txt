@@ -41,6 +41,7 @@ enable_testing()
 
 add_executable(libster_tests
     tests/test_main.cpp
+    tests/test_persistence.cpp
 )
 target_link_libraries(libster_tests PRIVATE libster_core)
 libster_enable_warnings(libster_tests)

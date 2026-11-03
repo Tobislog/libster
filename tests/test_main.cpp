@@ -1,33 +1,21 @@
 #include <cstring>
-#include <iostream>
 
+#include "TestSupport.h"
 #include "core/Version.h"
 
-namespace {
-int failures = 0;
-
-void check(bool condition, const char* description) {
-    if (condition) {
-        std::cout << "[ OK ] " << description << '\n';
-    } else {
-        std::cout << "[ FAIL ] " << description << '\n';
-        ++failures;
-    }
-}
-
-#define CHECK(condition) check((condition), #condition)
-
-} // namespace
+void runPersistenceTests(libster::test::TestContext& t); // Definition in test_persistence.cpp
 
 int main() {
-    CHECK(libster::version() != nullptr);
-    CHECK(std::strcmp(libster::version(), "0.1.0") == 0);
+    libster::test::TestContext t;
 
-    if (failures == 0) {
+    CHECK(t, std::strcmp(libster::version(), "0.1.0") == 0);
+    runPersistenceTests(t);
+
+    if (t.passed()) {
         std::cout << "Alle Tests bestanden.\n";
         return 0;
     }
 
-    std::cerr << failures << " Test(s) fehlgeschlagen.\n";
+    std::cerr << t.failures() << " Test(s) fehlgeschlagen.\n";
     return 1;
 }
