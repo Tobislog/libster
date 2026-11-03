@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "compilerPath": "/usr/bin/clang++",
+            "compilerArgs": [
+                "-std=c++17",
+                "-iframework",
+                "/opt/homebrew/lib"
+            ],
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/opt/homebrew/lib/QtCore.framework/Headers",
+                "/opt/homebrew/lib/QtGui.framework/Headers",
+                "/opt/homebrew/lib/QtWidgets.framework/Headers"
+            ],
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "macos-clang-arm64"
+        }
+    ],
+    "version": 4
+}
