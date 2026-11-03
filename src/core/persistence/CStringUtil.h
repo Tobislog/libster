@@ -8,8 +8,8 @@
 namespace libster {
 
 template <std::size_t N>
-void copyToFixed(char (&dst)[N], std::string_view src) {
-    static_assert(N > 0, "Array darf nicht leer sein") ;
+void copyToFixed(char (&dst)[N], std::string_view src) noexcept {
+    static_assert(N > 0, "Array darf nicht leer sein");
     const std::size_t count = std::min(src.size(), N - 1);
     std::fill(dst, dst + N, '\0');
     std::copy_n(src.begin(), count, dst);

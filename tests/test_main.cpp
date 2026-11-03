@@ -1,4 +1,5 @@
 #include <cstring>
+#include <iostream>
 
 #include "TestSupport.h"
 #include "core/Version.h"

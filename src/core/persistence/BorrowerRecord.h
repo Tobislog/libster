@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <type_traits>
 
 #include "core/model/BorrowerStatus.h"
@@ -21,7 +21,7 @@ struct BorrowerRecord {
 };
 #pragma pack(pop)
 
-static_assert(sizeof(BorrowerRecord) == 464, "...");
+static_assert(sizeof(BorrowerRecord) == 464, "BorrowerRecord muss 464 Bytes sein (Dateiformat!)");
 static_assert(offsetof(BorrowerRecord, id)          == 0);
 static_assert(offsetof(BorrowerRecord, lastName)    == 4);
 static_assert(offsetof(BorrowerRecord, firstName)   == 68);

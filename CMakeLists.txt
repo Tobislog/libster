@@ -11,7 +11,7 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 function(libster_enable_warnings target)
     if(MSVC)
-        target_compile_options(${target} PRIVATE /W4)
+        target_compile_options(${target} PRIVATE /W4 /wd4121) # wegen gepackten structs auf ungeradem offset (BookRecord)
     else()
         target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
     endif()

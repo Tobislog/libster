@@ -16,7 +16,7 @@ inline constexpr std::uint32_t kFirstId = 1;
 struct FileHeader {
     std::uint32_t magic;         // 0 kFileMagic
     std::uint16_t version;       // 4 kFileFormatVersion
-    FileType type;          // 6 welche Entity
+    FileType type;               // 6 welche Entity
     std::uint32_t recordSize;    // 8 sizeof(T)
     std::uint32_t nextId;        // 12 nächste freie ID, Start 1
 };
