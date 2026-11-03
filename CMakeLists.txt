@@ -1,16 +1,48 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(PROJECTNAME LANGUAGES CXX)
+project(libster LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
-qt_add_executable(PROJECTNAME
-    src/main.cpp
-)
+function(libster_enable_warnings target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4)
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+endfunction()
 
-target_link_libraries(PROJECTNAME PRIVATE
+# 1) Qt-freie Core-Lib
+add_library(libster_core STATIC
+    src/core/Version.cpp
+)
+target_include_directories(libster_core PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+libster_enable_warnings(libster_core)
+
+# 2) Qt-GUI
+qt_add_executable(libster
+    src/gui/main.cpp
+)
+target_link_libraries(libster PRIVATE
+    libster_core
     Qt6::Widgets
 )
+libster_enable_warnings(libster)
+
+# 3) Tests
+enable_testing()
+
+add_executable(libster_tests
+    tests/test_main.cpp
+)
+target_link_libraries(libster_tests PRIVATE libster_core)
+libster_enable_warnings(libster_tests)
+
+add_test(NAME libster_tests COMMAND libster_tests)
