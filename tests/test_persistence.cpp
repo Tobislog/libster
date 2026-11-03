@@ -5,7 +5,6 @@
 
 void runPersistenceTests(libster::test::TestContext& t) {
     char buf[8]{};
-    char alias[] = "abcdefg";
     char raw[8];
     for (char& c : raw) c = 'Z';
 
@@ -31,7 +30,6 @@ void runPersistenceTests(libster::test::TestContext& t) {
     libster::copyToFixed(raw, "ab");
     CHECK(t, raw[2] == '\0' && raw[3] == '\0' && raw[7] == '\0');
 
-    libster::copyToFixed(alias, std::string_view(alias, 7));
-    CHECK(t, alias == "");
-
+    // Kein Test fuer Aliasing: src darf laut Vorbedingung nicht in dst zeigen.
+    // `alias == ""` verglich ausserdem nur Array-Adressen, nicht den Inhalt.
 }

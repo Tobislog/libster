@@ -7,6 +7,8 @@
 
 namespace libster {
 
+// Vorbedingung: src darf nicht in dst hineinzeigen (Aliasing wuerde die Quelle
+// durch das vorherige Nullen zerstoeren).
 template <std::size_t N>
 void copyToFixed(char (&dst)[N], std::string_view src) noexcept {
     static_assert(N > 0, "Array darf nicht leer sein");
