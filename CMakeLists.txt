@@ -20,6 +20,7 @@ endfunction()
 # 1) Qt-freie Core-Lib
 add_library(libster_core STATIC
     src/core/Version.cpp
+    src/core/model/Borrower.cpp
 )
 target_include_directories(libster_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -42,6 +43,7 @@ enable_testing()
 add_executable(libster_tests
     tests/test_main.cpp
     tests/test_persistence.cpp
+    tests/test_borrower.cpp
 )
 target_link_libraries(libster_tests PRIVATE libster_core)
 libster_enable_warnings(libster_tests)
