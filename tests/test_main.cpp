@@ -6,6 +6,7 @@
 
 void runPersistenceTests(libster::test::TestContext& t);
 void runBorrowerTests(libster::test::TestContext& t);
+void runBinaryFileTests(libster::test::TestContext& t);
 
 int main() {
     libster::test::TestContext t;
@@ -13,6 +14,7 @@ int main() {
     CHECK(t, std::strcmp(libster::version(), "0.1.0") == 0);
     runPersistenceTests(t);
     runBorrowerTests(t);
+    runBinaryFileTests(t);
 
     if (t.passed()) {
         std::cout << "Alle Tests bestanden.\n";
