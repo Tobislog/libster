@@ -24,6 +24,7 @@ add_library(libster_core STATIC
     src/core/model/Medium.cpp
     src/core/model/Book.cpp
     src/core/model/CD.cpp
+    src/core/model/LoanTransaction.cpp
     src/core/persistence/BinaryFile.cpp
 )
 target_include_directories(libster_core PUBLIC
@@ -50,6 +51,7 @@ add_executable(libster_tests
     tests/test_borrower.cpp
     tests/test_binaryfile.cpp
     tests/test_models.cpp
+    tests/test_loan_transaction.cpp
 )
 target_link_libraries(libster_tests PRIVATE libster_core)
 libster_enable_warnings(libster_tests)

@@ -8,6 +8,7 @@ void runPersistenceTests(libster::test::TestContext& t);
 void runBorrowerTests(libster::test::TestContext& t);
 void runBinaryFileTests(libster::test::TestContext& t);
 void runModelTests(libster::test::TestContext& t);
+void runLoanTransactionTests(libster::test::TestContext& t);
 
 int main() {
     libster::test::TestContext t;
@@ -17,6 +18,7 @@ int main() {
     runBorrowerTests(t);
     runBinaryFileTests(t);
     runModelTests(t);
+    runLoanTransactionTests(t);
 
     if (t.passed()) {
         std::cout << "Alle Tests bestanden.\n";

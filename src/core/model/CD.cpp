@@ -8,17 +8,17 @@ namespace libster {
 
 CD::CD(
     std::uint32_t id,
-        std::string title,
-        std::string publisher,
-        std::string genre,
-        std::string publishedOn,
-        std::string addedOn,
-        std::string location,
-        std::uint32_t price,
-        std::string recordedBy,
-        std::string performer,
-        std::uint16_t duration,
-        Status status
+    std::string title,
+    std::string publisher,
+    std::string genre,
+    std::string publishedOn,
+    std::string addedOn,
+    std::string location,
+    std::uint32_t price,
+    std::string recordedBy,
+    std::string performer,
+    std::uint16_t duration,
+    Status status
 ) : Medium(
     id,
     std::move(title),
