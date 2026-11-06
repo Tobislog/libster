@@ -22,6 +22,7 @@ struct BorrowerRecord {
 #pragma pack(pop)
 
 static_assert(sizeof(BorrowerRecord) == 464, "BorrowerRecord muss 464 Bytes sein (Dateiformat!)");
+static_assert(alignof(BorrowerRecord) == 1, "pragma pack nicht aktiv");
 static_assert(offsetof(BorrowerRecord, id)          == 0);
 static_assert(offsetof(BorrowerRecord, lastName)    == 4);
 static_assert(offsetof(BorrowerRecord, firstName)   == 68);

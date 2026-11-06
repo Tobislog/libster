@@ -21,6 +21,9 @@ endfunction()
 add_library(libster_core STATIC
     src/core/Version.cpp
     src/core/model/Borrower.cpp
+    src/core/model/Medium.cpp
+    src/core/model/Book.cpp
+    src/core/model/CD.cpp
     src/core/persistence/BinaryFile.cpp
 )
 target_include_directories(libster_core PUBLIC
