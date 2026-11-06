@@ -49,6 +49,7 @@ add_executable(libster_tests
     tests/test_persistence.cpp
     tests/test_borrower.cpp
     tests/test_binaryfile.cpp
+    tests/test_models.cpp
 )
 target_link_libraries(libster_tests PRIVATE libster_core)
 libster_enable_warnings(libster_tests)
