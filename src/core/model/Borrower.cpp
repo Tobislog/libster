@@ -61,6 +61,14 @@ void Borrower::update(std::string lastName, std::string firstName, std::string e
     address_ = std::move(address);
 }
 
+void Borrower::markDeleted() noexcept {
+    lastName_.clear();
+    firstName_.clear();
+    email_.clear();
+    address_.clear();
+    status_ = BorrowerStatus::DELETED;
+}
+
 BorrowerRecord Borrower::toRecord() const noexcept {
     BorrowerRecord record {};
     record.id = id_;

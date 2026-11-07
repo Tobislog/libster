@@ -40,6 +40,8 @@ public:
         std::string email,
         std::string address
     ); // recordedOn/By bleiben unveränderliche Metadaten
+
+    void markDeleted() noexcept; // nullt Personenfelder und setzt status_ = DELETED
     
     BorrowerRecord toRecord() const noexcept;
     static std::optional<Borrower> fromRecord(const BorrowerRecord& record);
