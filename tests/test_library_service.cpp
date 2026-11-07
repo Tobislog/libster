@@ -6,11 +6,19 @@
 
 #include "TestSupport.h"
 #include "core/model/Borrower.h"
+#include "core/model/Book.h"
+#include "core/model/CD.h"
+#include "core/model/LoanTransaction.h"
+#include "core/model/MediumType.h"
+#include "core/model/Status.h"
 #include "core/persistence/BinaryFile.h"
 #include "core/persistence/BorrowerRecord.h"
+#include "core/persistence/BookRecord.h"
+#include "core/persistence/CDRecord.h"
 #include "core/persistence/CStringUtil.h"
 #include "core/persistence/FileType.h"
 #include "core/persistence/IoError.h"
+#include "core/persistence/LoanTransactionRecord.h"
 #include "core/services/LibraryService.h"
 
 namespace {
