@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <vector>
 
 #include "TestSupport.h"
 #include "core/persistence/BinaryFile.h"
@@ -291,6 +292,91 @@ void testWriteRejectsInvalidInput(libster::test::TestContext& t) {
     CHECK(t, bf.write(99u, makeRecord(99u, "NoSlot")) == IoError::InvalidId);
 }
 
+void testFindAllReturnsMatchingRecords(libster::test::TestContext& t) {
+    TempFile file("libster_find_all");
+    BinaryFile bf;
+    CHECK(t, bf.openOrCreate<BorrowerRecord>(file.path(), FileType::Borrower) == IoError::None);
+
+    std::uint32_t id = 0;
+    CHECK(t, bf.append(makeRecord(0u, "Alpha"), id) == IoError::None);
+    CHECK(t, bf.append(makeRecord(0u, "Beta"), id) == IoError::None);
+    CHECK(t, bf.append(makeRecord(0u, "Alphabet"), id) == IoError::None);
+
+    std::vector<BorrowerRecord> hits;
+    const IoError error = bf.findAll<BorrowerRecord>(
+        [](const BorrowerRecord& record) {
+            return libster::fixedToString(record.lastName).find("Alpha") == 0;
+        },
+        hits
+    );
+
+    CHECK(t, error == IoError::None);
+    CHECK(t, hits.size() == 2u);
+    if (hits.size() == 2u) {
+        CHECK(t, libster::fixedToString(hits[0].lastName) == "Alpha");
+        CHECK(t, libster::fixedToString(hits[1].lastName) == "Alphabet");
+    }
+}
+
+void testFindAllCanMatchById(libster::test::TestContext& t) {
+    TempFile file("libster_find_by_id");
+    BinaryFile bf;
+    CHECK(t, bf.openOrCreate<BorrowerRecord>(file.path(), FileType::Borrower) == IoError::None);
+
+    std::uint32_t id = 0;
+    CHECK(t, bf.append(makeRecord(0u, "Alpha"), id) == IoError::None);
+    CHECK(t, bf.append(makeRecord(0u, "Beta"), id) == IoError::None);
+
+    std::vector<BorrowerRecord> hits;
+    CHECK(t, bf.findAll<BorrowerRecord>(
+        [](const BorrowerRecord& record) {
+            return record.id == 2u;
+        },
+        hits
+    ) == IoError::None);
+
+    CHECK(t, hits.size() == 1u);
+    if (hits.size() == 1u) {
+        CHECK(t, hits[0].id == 2u);
+        CHECK(t, libster::fixedToString(hits[0].lastName) == "Beta");
+    }
+}
+
+void testFindAllReturnsEmptyWhenNothingMatches(libster::test::TestContext& t) {
+    TempFile file("libster_find_empty");
+    BinaryFile bf;
+    CHECK(t, bf.openOrCreate<BorrowerRecord>(file.path(), FileType::Borrower) == IoError::None);
+
+    std::uint32_t id = 0;
+    CHECK(t, bf.append(makeRecord(0u, "Alpha"), id) == IoError::None);
+
+    std::vector<BorrowerRecord> hits(3, makeRecord(99u, "Old"));
+    CHECK(t, bf.findAll<BorrowerRecord>(
+        [](const BorrowerRecord&) {
+            return false;
+        },
+        hits
+    ) == IoError::None);
+
+    CHECK(t, hits.empty());
+}
+
+void testFindAllOnEmptyFile(libster::test::TestContext& t) {
+    TempFile file("libster_find_empty_file");
+    BinaryFile bf;
+    CHECK(t, bf.openOrCreate<BorrowerRecord>(file.path(), FileType::Borrower) == IoError::None);
+
+    std::vector<BorrowerRecord> hits;
+    CHECK(t, bf.findAll<BorrowerRecord>(
+        [](const BorrowerRecord&) {
+            return true;
+        },
+        hits
+    ) == IoError::None);
+
+    CHECK(t, hits.empty());
+}
+
 void testOperationsOnClosedFileFail(libster::test::TestContext& t) {
     BinaryFile bf;
     BorrowerRecord record{};
@@ -299,6 +385,10 @@ void testOperationsOnClosedFileFail(libster::test::TestContext& t) {
     CHECK(t, bf.read(1u, record) == IoError::NotOpen);
     CHECK(t, bf.write(1u, record) == IoError::NotOpen);
     CHECK(t, bf.append(record, id) == IoError::NotOpen);
+
+    std::vector<BorrowerRecord> hits;
+    CHECK(t, bf.findAll<BorrowerRecord>([](const BorrowerRecord&) { return true; }, hits)
+        == IoError::NotOpen);
 }
 
 } // namespace
@@ -317,5 +407,9 @@ void runBinaryFileTests(libster::test::TestContext& t) {
     testMissingParentDirectoryFails(t);
     testOverwriteKeepsNextId(t);
     testWriteRejectsInvalidInput(t);
+    testFindAllReturnsMatchingRecords(t);
+    testFindAllCanMatchById(t);
+    testFindAllReturnsEmptyWhenNothingMatches(t);
+    testFindAllOnEmptyFile(t);
     testOperationsOnClosedFileFail(t);
 }

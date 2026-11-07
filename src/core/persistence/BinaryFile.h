@@ -5,6 +5,7 @@
 #include <fstream>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 #include "core/persistence/FileHeader.h"
 #include "core/persistence/FileType.h"
@@ -40,6 +41,9 @@ public:
 
     template <typename T>
     IoError write(std::uint32_t id, const T& record);
+
+    template <typename T, typename Predicate>
+    IoError findAll(Predicate predicate, std::vector<T>& out);
 
 private:
     IoError openOrCreateImpl(const std::string& path, FileType expectedType, std::uint32_t recordSize);
@@ -108,4 +112,29 @@ IoError BinaryFile::write(std::uint32_t id, const T& record) {
 
     return writeRecordBytes(recordOffset(id), &record, sizeof(T));
 }
+
+template <typename T, typename Predicate>
+IoError BinaryFile::findAll(Predicate predicate, std::vector<T>& out) {
+    static_assert(std::is_trivially_copyable_v<T>, "Records müssen trivially copyable sein");
+    static_assert(std::is_standard_layout_v<T>, "Records müssen standard layout sein");
+
+    if (!isOpen()) return IoError::NotOpen;
+    if (recordSize_ != static_cast<std::uint32_t>(sizeof(T))) return IoError::InvalidRecordSize;
+    if (header_.nextId < kFirstId) return IoError::InvalidHeader;
+
+    out.clear();
+
+    for (std::uint32_t id = kFirstId; id < header_.nextId; ++id) {
+        T record{};
+        const IoError error = read(id, record);
+        if (error != IoError::None) return error;
+
+        if (predicate(record)) {
+            out.push_back(record);
+        }
+    }
+
+    return IoError::None;
+}
+
 } // namespace libster
