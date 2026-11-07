@@ -6,6 +6,8 @@
 #include <string_view>
 #include <system_error>
 
+#include "core/model/Medium.h"
+#include "core/model/Book.h"
 #include "core/persistence/BorrowerRecord.h"
 #include "core/persistence/BookRecord.h"
 #include "core/persistence/CDRecord.h"
@@ -219,6 +221,235 @@ ServiceError LibraryService::findBorrowers(const std::string& query, std::vector
     return ServiceError::None;
 }
 
+// Books
+
+ServiceError LibraryService::addBook(Book& book) {
+    if (!isOpen()) return ServiceError::NotOpen;
+    if (book.getId() != kUnassignedId) return ServiceError::InvalidData;
+
+    std::uint32_t assignedId = kUnassignedId;
+    const IoError error = books_.append(book.toRecord(), assignedId);
+    if (error != IoError::None) return toServiceError(error);
+
+    book.setId(assignedId);
+    return ServiceError::None;
+}
+
+ServiceError LibraryService::getBook(std::uint32_t id, std::optional<Book>& out) {
+    out.reset();
+    if (!isOpen()) return ServiceError::NotOpen;
+    
+    BookRecord record{};
+    const IoError error = books_.read(id, record);
+    if (error != IoError::None) return toServiceError(error);
+
+    const auto book = Book::fromRecord(record);
+    if (!book) return ServiceError::Persistence;
+    if (book->getStatus() == Status::DELETED) return ServiceError::NotFound;
+
+    out = *book;
+    return ServiceError::None;
+}
+
+ServiceError LibraryService::updateBook(const Book& book) {
+    if (!isOpen()) return ServiceError::NotOpen;
+    
+    BookRecord record{};
+    IoError error = books_.read(book.getId(), record);
+    if (error != IoError::None) return toServiceError(error);
+
+    auto existing = Book::fromRecord(record);
+    if (!existing) return ServiceError::Persistence;
+    if (existing->getStatus() == Status::DELETED) return ServiceError::NotFound;
+
+    existing->update(
+        book.getTitle(),
+        book.getPublisher(),
+        book.getGenre(),
+        book.getPublishedOn(),
+        book.getLocation(),
+        book.getPrice(),
+        book.getIsbn(),
+        book.getEdition(),
+        book.getAuthors(),
+        book.getPageCount()
+    );
+    error = books_.write(existing->getId(), existing->toRecord());
+    return toServiceError(error);
+}
+
+ServiceError LibraryService::deleteBook(std::uint32_t id) {
+    if (!isOpen()) return ServiceError::NotOpen;
+
+    BookRecord record{};
+    IoError error = books_.read(id, record);
+    if (error != IoError::None) return toServiceError(error);
+
+    auto book = Book::fromRecord(record);
+    if (!book) return ServiceError::Persistence;
+    if (book->getStatus() == Status::DELETED) return ServiceError::NotFound;
+
+    bool hasOpen = false;
+    const ServiceError loanError = hasOpenMediumLoan(id, MediumType::BOOK, hasOpen);
+    if (loanError != ServiceError::None) return loanError;
+    if (hasOpen) return ServiceError::HasOpenLoans;
+
+    book->setStatus(Status::DELETED);
+
+    error = books_.write(id, book->toRecord());
+    return toServiceError(error);
+}
+
+ServiceError LibraryService::findBooks(const std::string& query, std::vector<Book>& out) {
+    out.clear();
+    if (!isOpen()) return ServiceError::NotOpen;
+
+    const std::string needle = toLowerAscii(query);
+
+    std::uint32_t idQuery = 0;
+    const bool hasIdQuery = parseId(query, idQuery);
+
+    std::vector<BookRecord> records;
+    const IoError error = books_.findAll<BookRecord>(
+        [&](const BookRecord& record) {
+            if (record.status == Status::DELETED) return false;
+            if (hasIdQuery && record.id == idQuery) return true;
+            if (needle.empty()) return true;
+
+            return containsCaseInsensitive(fixedToString(record.title), needle)
+                || containsCaseInsensitive(fixedToString(record.authors), needle)
+                || containsCaseInsensitive(fixedToString(record.isbn), needle)
+                || containsCaseInsensitive(fixedToString(record.publisher), needle);
+        },
+        records
+    );
+    if (error != IoError::None) return toServiceError(error);
+
+    out.reserve(records.size());
+    for (const BookRecord& record : records) {
+        const auto book = Book::fromRecord(record);
+        if (!book) return ServiceError::Persistence;
+        out.push_back(*book);
+    }
+
+    return ServiceError::None;
+}
+
+
+// CDs
+
+ServiceError LibraryService::addCD(CD& cd) {
+    if (!isOpen()) return ServiceError::NotOpen;
+    if (cd.getId() != kUnassignedId) return ServiceError::InvalidData;
+
+    std::uint32_t assignedId = kUnassignedId;
+    const IoError error = cds_.append(cd.toRecord(), assignedId);
+    if (error != IoError::None) return toServiceError(error);
+
+    cd.setId(assignedId);
+    return ServiceError::None;
+}
+
+ServiceError LibraryService::getCD(std::uint32_t id, std::optional<CD>& out) {
+    out.reset();
+    if (!isOpen()) return ServiceError::NotOpen;
+    
+    CDRecord record{};
+    const IoError error = cds_.read(id, record);
+    if (error != IoError::None) return toServiceError(error);
+
+    const auto cd = CD::fromRecord(record);
+    if (!cd) return ServiceError::Persistence;
+    if (cd->getStatus() == Status::DELETED) return ServiceError::NotFound;
+
+    out = *cd;
+    return ServiceError::None;
+}
+
+ServiceError LibraryService::updateCD(const CD& cd) {
+    if (!isOpen()) return ServiceError::NotOpen;
+    
+    CDRecord record{};
+    IoError error = cds_.read(cd.getId(), record);
+    if (error != IoError::None) return toServiceError(error);
+
+    auto existing = CD::fromRecord(record);
+    if (!existing) return ServiceError::Persistence;
+    if (existing->getStatus() == Status::DELETED) return ServiceError::NotFound;
+
+    existing->update(
+        cd.getTitle(),
+        cd.getPublisher(),
+        cd.getGenre(),
+        cd.getPublishedOn(),
+        cd.getLocation(),
+        cd.getPrice(),
+        cd.getPerformer(),
+        cd.getDuration()
+        
+    );
+    error = cds_.write(existing->getId(), existing->toRecord());
+    return toServiceError(error);
+}
+
+ServiceError LibraryService::deleteCD(std::uint32_t id) {
+    if (!isOpen()) return ServiceError::NotOpen;
+
+    CDRecord record{};
+    IoError error = cds_.read(id, record);
+    if (error != IoError::None) return toServiceError(error);
+
+    auto cd = CD::fromRecord(record);
+    if (!cd) return ServiceError::Persistence;
+    if (cd->getStatus() == Status::DELETED) return ServiceError::NotFound;
+
+    bool hasOpen = false;
+    const ServiceError loanError = hasOpenMediumLoan(id, MediumType::CD, hasOpen);
+    if (loanError != ServiceError::None) return loanError;
+    if (hasOpen) return ServiceError::HasOpenLoans;
+
+    cd->setStatus(Status::DELETED);
+
+    error = cds_.write(id, cd->toRecord());
+    return toServiceError(error);
+}
+
+ServiceError LibraryService::findCDs(const std::string& query, std::vector<CD>& out) {
+    out.clear();
+    if (!isOpen()) return ServiceError::NotOpen;
+
+    const std::string needle = toLowerAscii(query);
+
+    std::uint32_t idQuery = 0;
+    const bool hasIdQuery = parseId(query, idQuery);
+
+    std::vector<CDRecord> records;
+    const IoError error = cds_.findAll<CDRecord>(
+        [&](const CDRecord& record) {
+            if (record.status == Status::DELETED) return false;
+            if (hasIdQuery && record.id == idQuery) return true;
+            if (needle.empty()) return true;
+
+            return containsCaseInsensitive(fixedToString(record.title), needle)
+                || containsCaseInsensitive(fixedToString(record.performer), needle)
+                || containsCaseInsensitive(fixedToString(record.publisher), needle)
+                || containsCaseInsensitive(fixedToString(record.location), needle);
+        },
+        records
+    );
+    if (error != IoError::None) return toServiceError(error);
+
+    out.reserve(records.size());
+    for (const CDRecord& record : records) {
+        const auto cd = CD::fromRecord(record);
+        if (!cd) return ServiceError::Persistence;
+        out.push_back(*cd);
+    }
+
+    return ServiceError::None;
+}
+
+
 ServiceError LibraryService::hasOpenLoans(std::uint32_t borrowerId, bool& result) {
     result = false;
 
@@ -226,6 +457,22 @@ ServiceError LibraryService::hasOpenLoans(std::uint32_t borrowerId, bool& result
     const IoError error = loans_.findAll<LoanTransactionRecord>(
         [borrowerId](const LoanTransactionRecord& loan) {
             return loan.borrowerId == borrowerId && loan.returnDate == 0;
+        },
+        openLoans
+    );
+    if (error != IoError::None) return toServiceError(error);
+
+    result = !openLoans.empty();
+    return ServiceError::None;
+}
+
+ServiceError LibraryService::hasOpenMediumLoan(std::uint32_t mediumId, MediumType type, bool& result) {
+    result = false;
+
+    std::vector<LoanTransactionRecord> openLoans;
+    const IoError error = loans_.findAll<LoanTransactionRecord>(
+        [mediumId, type](const LoanTransactionRecord& loan) {
+            return loan.mediumId == mediumId && loan.type == type && loan.returnDate == 0;
         },
         openLoans
     );
