@@ -68,3 +68,10 @@ add_executable(libster_generate
 )
 target_link_libraries(libster_generate PRIVATE libster_core)
 libster_enable_warnings(libster_generate)
+
+# 5) Performance-Benchmark
+add_executable(libster_benchmark
+    tools/benchmark_search.cpp
+)
+target_link_libraries(libster_benchmark PRIVATE libster_core)
+libster_enable_warnings(libster_benchmark)
