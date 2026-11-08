@@ -311,16 +311,28 @@ int main(int argc, char** argv) {
 
     std::uint32_t openLoans = 0;
     std::uint32_t returnedLoans = 0;
+    std::uint32_t nextBook = 0;
+    std::uint32_t nextCd = 0;
 
     for (std::uint32_t i = 0; i < options.loans; ++i) {
+        const bool hasBooks = nextBook < bookIds.size();
+        const bool hasCds = nextCd < cdIds.size();
+
+        bool useBook = false;
+        if (hasBooks && hasCds) {
+            useBook = (i % 2u == 0);
+        } else {
+            useBook = hasBooks;
+        }
+
         MediumType type = MediumType::BOOK;
         std::uint32_t mediumId = 0;
 
-        if (i < options.books) {
-            mediumId = bookIds[i];
+        if (useBook) {
+            mediumId = bookIds[nextBook++];
         } else {
             type = MediumType::CD;
-            mediumId = cdIds[i - options.books];
+            mediumId = cdIds[nextCd++];
         }
 
         const std::uint32_t borrowerId = borrowerIds[i % borrowerIds.size()];
