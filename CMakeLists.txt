@@ -61,3 +61,10 @@ target_link_libraries(libster_tests PRIVATE libster_core)
 libster_enable_warnings(libster_tests)
 
 add_test(NAME libster_tests COMMAND libster_tests)
+
+# 4) Testdaten-Generator
+add_executable(libster_generate
+    tools/generate_test_data.cpp
+)
+target_link_libraries(libster_generate PRIVATE libster_core)
+libster_enable_warnings(libster_generate)
