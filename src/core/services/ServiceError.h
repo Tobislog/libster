@@ -11,7 +11,9 @@ enum class ServiceError : std::uint8_t {
     AlreadyDeleted,
     HasOpenLoans,
     NotAvailable,
+    AlreadyReturned,
     InvalidData,
+    PartialWrite,
     Persistence
 };
 
@@ -23,7 +25,9 @@ inline const char* toString(ServiceError error) noexcept {
         case ServiceError::AlreadyDeleted:  return "AlreadyDeleted";
         case ServiceError::HasOpenLoans:    return "HasOpenLoans";
         case ServiceError::NotAvailable:    return "NotAvailable";
+        case ServiceError::AlreadyReturned: return "AlreadyReturned";
         case ServiceError::InvalidData:     return "InvalidData";
+        case ServiceError::PartialWrite:    return "PartialWrite";
         case ServiceError::Persistence:     return "Persistence";
     }
     return "Unknown";

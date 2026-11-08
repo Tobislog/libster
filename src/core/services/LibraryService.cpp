@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <string_view>
 #include <system_error>
+#include <utility>
 
 #include "core/model/Medium.h"
 #include "core/model/Book.h"
@@ -335,6 +336,10 @@ ServiceError LibraryService::findBooks(const std::string& query, std::vector<Boo
     return ServiceError::None;
 }
 
+ServiceError LibraryService::loanBook(std::uint32_t borrowerId, std::uint32_t bookId, std::int64_t loanDate, std::uint32_t& loanId) {
+    return loanMedium(MediumType::BOOK, borrowerId, bookId, loanDate, loanId);
+}
+
 
 // CDs
 
@@ -449,6 +454,83 @@ ServiceError LibraryService::findCDs(const std::string& query, std::vector<CD>& 
     return ServiceError::None;
 }
 
+ServiceError LibraryService::loanCD(std::uint32_t borrowerId, std::uint32_t cdId, std::int64_t loanDate, std::uint32_t& loanId) {
+    return loanMedium(MediumType::CD, borrowerId, cdId, loanDate, loanId);
+}
+
+// General
+
+ServiceError LibraryService::returnLoan(std::uint32_t loanId, std::int64_t returnDate) {
+    if (!isOpen()) return ServiceError::NotOpen;
+    if (returnDate <= 0) return ServiceError::InvalidData;
+
+    LoanTransactionRecord record{};
+    IoError error = loans_.read(loanId, record);
+    if (error != IoError::None) return toServiceError(error);
+    
+    auto loan = LoanTransaction::fromRecord(record);
+    if (!loan) return ServiceError::Persistence;
+    if (loan->getReturnDate() != 0) return ServiceError::AlreadyReturned;
+    if (returnDate < loan->getLoanDate()) return ServiceError::InvalidData;
+
+    loan->setReturnDate(returnDate);
+
+    error = loans_.write(loanId, loan->toRecord());
+    if (error != IoError::None) return toServiceError(error);
+
+    const ServiceError statusError = setMediumStatus(loan->getType(), loan->getMediumId(), Status::AVAILABLE);
+    if (statusError != ServiceError::None) return ServiceError::PartialWrite;
+
+    return ServiceError::None;
+}
+
+ServiceError LibraryService::getLoan(std::uint32_t loanId, std::optional<LoanTransaction>& out){
+    out.reset();
+    if (!isOpen()) return ServiceError::NotOpen;
+
+    LoanTransactionRecord record{};
+    IoError error = loans_.read(loanId, record);
+    if (error != IoError::None) return toServiceError(error);
+
+    const auto loan = LoanTransaction::fromRecord(record);
+    if (!loan) return ServiceError::Persistence;
+
+    out = *loan;
+    return ServiceError::None;
+}
+
+ServiceError LibraryService::findOpenLoans(std::uint32_t borrowerId, std::vector<LoanTransaction>& out){
+    out.clear();
+    if (!isOpen()) return ServiceError::NotOpen;
+
+    std::vector<LoanTransactionRecord> records;
+    const IoError error = loans_.findAll<LoanTransactionRecord>(
+        [borrowerId](const LoanTransactionRecord& loan) {
+            return loan.borrowerId == borrowerId && loan.returnDate == 0;
+        }, records
+    );
+    if (error != IoError::None) return toServiceError(error);
+
+    out.reserve(records.size());
+    for (const LoanTransactionRecord& record : records) {
+        const auto loan = LoanTransaction::fromRecord(record);
+        if (!loan) return ServiceError::Persistence;
+        out.push_back(*loan);
+    }
+
+    return ServiceError::None;
+}
+
+// Session
+
+void LibraryService::setRecordedBy(std::string recordedBy){
+    recordedBy_ = std::move(recordedBy);
+}
+
+const std::string& LibraryService::getRecordedBy() const noexcept{
+    return recordedBy_;
+}
+
 
 ServiceError LibraryService::hasOpenLoans(std::uint32_t borrowerId, bool& result) {
     result = false;
@@ -481,4 +563,95 @@ ServiceError LibraryService::hasOpenMediumLoan(std::uint32_t mediumId, MediumTyp
     result = !openLoans.empty();
     return ServiceError::None;
 }
+
+ServiceError LibraryService::loanMedium(MediumType type, std::uint32_t borrowerId, uint32_t mediumId, std::int64_t loanDate, std::uint32_t& loanId){
+    loanId = 0;
+    if (!isOpen()) return ServiceError::NotOpen;
+    if (loanDate < 0) return ServiceError::InvalidData;
+
+    std::optional<Borrower> borrower;
+    const ServiceError borrowerError = getBorrower(borrowerId, borrower);
+    if (borrowerError != ServiceError::None) return borrowerError;
+
+    Status mediumStatus = Status::AVAILABLE;
+    if (type == MediumType::BOOK) {
+        BookRecord record{};
+        const IoError error = books_.read(mediumId, record);
+        if (error != IoError::None) return toServiceError(error);
+        
+        const auto book = Book::fromRecord(record);
+        if (!book) return ServiceError::Persistence;
+        if (book->getStatus() == Status::DELETED) return ServiceError::NotFound;
+
+        mediumStatus = book->getStatus();
+    } else if (type == MediumType::CD) {
+        CDRecord record{};
+        const IoError error = cds_.read(mediumId, record);
+        if (error != IoError::None) return toServiceError(error);
+
+        const auto cd = CD::fromRecord(record);
+        if (!cd) return ServiceError::Persistence;
+        if (cd->getStatus() == Status::DELETED) return ServiceError::NotFound;
+
+        mediumStatus = cd->getStatus();
+    } else {
+        return ServiceError::InvalidData;
+    }
+
+    if (mediumStatus != Status::AVAILABLE) return ServiceError::NotAvailable;
+
+    LoanTransaction loan {
+        kUnassignedId,
+        borrowerId,
+        mediumId,
+        type,
+        loanDate,
+        0,
+        recordedBy_
+    };
+
+    std::uint32_t assignedId = kUnassignedId;
+    const IoError appendError = loans_.append(loan.toRecord(), assignedId);
+    if (appendError != IoError::None) return toServiceError(appendError);
+
+    loanId = assignedId;
+
+    const ServiceError statusError = setMediumStatus(type, mediumId, Status::LOANED);
+    if (statusError != ServiceError::None) return ServiceError::PartialWrite;
+
+    return ServiceError::None;
+}
+
+ServiceError LibraryService::setMediumStatus(MediumType type, std::uint32_t mediumId, Status status){
+    if (!isOpen()) return ServiceError::NotOpen;
+
+    if (type == MediumType::BOOK) {
+        BookRecord record{};
+        IoError error = books_.read(mediumId, record);
+        if (error != IoError::None) return toServiceError(error);
+
+        auto book = Book::fromRecord(record);
+        if (!book) return ServiceError::Persistence;
+
+        book->setStatus(status);
+        error = books_.write(mediumId, book->toRecord());
+        return toServiceError(error);
+    }
+
+    if (type == MediumType::CD) {
+        CDRecord record{};
+        IoError error = cds_.read(mediumId, record);
+        if (error != IoError::None) return toServiceError(error);
+
+        auto cd = CD::fromRecord(record);
+        if (!cd) return ServiceError::Persistence;
+
+        cd->setStatus(status);
+        error = cds_.write(mediumId, cd->toRecord());
+        return toServiceError(error);
+    }
+
+    return ServiceError::InvalidData;
+}
+
 } // namespace libster

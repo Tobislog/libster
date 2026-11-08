@@ -43,7 +43,7 @@ using libster::test::TempDir;
 using libster::test::TestContext;
 
 Borrower makeBorrower(
-    const std::string& lastName,
+    const std::string& lastName = "Mustermann",
     const std::string& firstName = "Anna",
     const std::string& email = "anna@example.org",
     const std::string& address = "Hauptweg"
@@ -134,6 +134,11 @@ std::uint32_t appendRawLoan(
     return loanId;
 }
 
+constexpr std::int64_t kLoanDate = 1760000000LL;
+constexpr std::int64_t kReturnDate = 1760003600LL;
+
+// General
+
 void returnRawLoan(
     TestContext& t,
     const std::string& directory,
@@ -151,8 +156,6 @@ void returnRawLoan(
     record.returnDate = returnDate;
     CHECK(t, loans.write(loanId, record) == IoError::None);
 }
-
-// General
 
 void testOpenCreatesFilesAndCloses(TestContext& t) {
     TempDir dir("libster_service_open");
@@ -203,6 +206,324 @@ void testOpenPreservesData(TestContext& t) {
     CHECK(t, restored.has_value());
     if (restored) {
         CHECK(t, restored->getLastName() == "Mustermann");
+    }
+}
+
+void testLoanRejectsUnknownBorrower(TestContext& t) {
+    TempDir dir("libster_service_loan_unknown_borrower");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Book book = makeBook();
+    CHECK(t, service.addBook(book) == ServiceError::None);
+
+    std::uint32_t loanId = 99;
+    CHECK(t, service.loanBook(99, book.getId(), kLoanDate, loanId)
+        == ServiceError::NotFound);
+    CHECK(t, loanId == 0u);
+}
+
+void testLoanRejectsDeletedBorrower(TestContext& t) {
+    TempDir dir("libster_service_loan_deleted_borrower");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower("Mustermann");
+    Book book = makeBook();
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addBook(book) == ServiceError::None);
+    CHECK(t, service.deleteBorrower(borrower.getId()) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+    CHECK(t, service.loanBook(borrower.getId(), book.getId(), kLoanDate, loanId)
+        == ServiceError::NotFound);
+    CHECK(t, loanId == 0u);
+}
+
+void testLoanRejectsUnknownMedium(TestContext& t) {
+    TempDir dir("libster_service_loan_unknown_medium");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower();
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+    CHECK(t, service.loanBook(borrower.getId(), 99, kLoanDate, loanId)
+        == ServiceError::NotFound);
+    CHECK(t, loanId == 0u);
+}
+
+void testLoanRejectsDeletedMedium(TestContext& t) {
+    TempDir dir("libster_service_loan_deleted_medium");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower();
+    Book book = makeBook();
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addBook(book) == ServiceError::None);
+    CHECK(t, service.deleteBook(book.getId()) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+    CHECK(t, service.loanBook(borrower.getId(), book.getId(), kLoanDate, loanId)
+        == ServiceError::NotFound);
+}
+
+void testLoanRejectsAlreadyLoaned(TestContext& t) {
+    TempDir dir("libster_service_loan_twice");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower();
+    Book book = makeBook();
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addBook(book) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+    CHECK(t, service.loanBook(borrower.getId(), book.getId(), kLoanDate, loanId)
+        == ServiceError::None);
+
+    std::uint32_t secondId = 0;
+    CHECK(t, service.loanBook(borrower.getId(), book.getId(), kLoanDate, secondId)
+        == ServiceError::NotAvailable);
+    CHECK(t, secondId == 0u);
+}
+
+void testLoanRejectsNegativeDate(TestContext& t) {
+    TempDir dir("libster_service_loan_negative_date");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower();
+    Book book = makeBook();
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addBook(book) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+    CHECK(t, service.loanBook(borrower.getId(), book.getId(), -1, loanId)
+        == ServiceError::InvalidData);
+    CHECK(t, loanId == 0u);
+}
+
+void testLoanOnClosedService(TestContext& t) {
+    LibraryService service;
+
+    std::uint32_t loanId = 0;
+    CHECK(t, service.loanBook(1, 1, kLoanDate, loanId) == ServiceError::NotOpen);
+    CHECK(t, service.loanCD(1, 1, kLoanDate, loanId) == ServiceError::NotOpen);
+    CHECK(t, service.returnLoan(1, kReturnDate) == ServiceError::NotOpen);
+}
+
+void testReturnLoan(TestContext& t) {
+    TempDir dir("libster_service_return");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower();
+    Book book = makeBook();
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addBook(book) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+    CHECK(t, service.loanBook(borrower.getId(), book.getId(), kLoanDate, loanId)
+        == ServiceError::None);
+
+    CHECK(t, service.returnLoan(loanId, kReturnDate) == ServiceError::None);
+
+    std::optional<LoanTransaction> loan;
+    CHECK(t, service.getLoan(loanId, loan) == ServiceError::None);
+    CHECK(t, loan.has_value());
+    if (loan) {
+        CHECK(t, loan->getReturnDate() == kReturnDate);
+    }
+
+    std::optional<Book> returnedBook;
+    CHECK(t, service.getBook(book.getId(), returnedBook) == ServiceError::None);
+    CHECK(t, returnedBook.has_value());
+    if (returnedBook) {
+        CHECK(t, returnedBook->getStatus() == Status::AVAILABLE);
+    }
+
+    std::vector<LoanTransaction> open;
+    CHECK(t, service.findOpenLoans(borrower.getId(), open) == ServiceError::None);
+    CHECK(t, open.empty());
+}
+
+void testReturnLoanUnknown(TestContext& t) {
+    TempDir dir("libster_service_return_unknown");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    CHECK(t, service.returnLoan(99, kReturnDate) == ServiceError::NotFound);
+}
+
+void testReturnLoanTwice(TestContext& t) {
+    TempDir dir("libster_service_return_twice");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower();
+    Book book = makeBook();
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addBook(book) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+    CHECK(t, service.loanBook(borrower.getId(), book.getId(), kLoanDate, loanId)
+        == ServiceError::None);
+
+    CHECK(t, service.returnLoan(loanId, kReturnDate) == ServiceError::None);
+    CHECK(t, service.returnLoan(loanId, kReturnDate + 3600)
+        == ServiceError::AlreadyReturned);
+}
+
+void testReturnLoanBeforeLoanDate(TestContext& t) {
+    TempDir dir("libster_service_return_before");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower();
+    Book book = makeBook();
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addBook(book) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+    CHECK(t, service.loanBook(borrower.getId(), book.getId(), kLoanDate, loanId)
+        == ServiceError::None);
+
+    CHECK(t, service.returnLoan(loanId, kLoanDate - 1) == ServiceError::InvalidData);
+}
+
+void testReturnLoanZeroDate(TestContext& t) {
+    TempDir dir("libster_service_return_zero");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower();
+    Book book = makeBook();
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addBook(book) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+    CHECK(t, service.loanBook(borrower.getId(), book.getId(), kLoanDate, loanId)
+        == ServiceError::None);
+
+    CHECK(t, service.returnLoan(loanId, 0) == ServiceError::InvalidData);
+}
+
+void testFindOpenLoans(TestContext& t) {
+    TempDir dir("libster_service_open_loans");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower firstBorrower = makeBorrower("First");
+    Borrower secondBorrower = makeBorrower("Second");
+    Book firstBook = makeBook("Book 1");
+    Book secondBook = makeBook("Book 2");
+    Book thirdBook = makeBook("Book 3");
+
+    CHECK(t, service.addBorrower(firstBorrower) == ServiceError::None);
+    CHECK(t, service.addBorrower(secondBorrower) == ServiceError::None);
+    CHECK(t, service.addBook(firstBook) == ServiceError::None);
+    CHECK(t, service.addBook(secondBook) == ServiceError::None);
+    CHECK(t, service.addBook(thirdBook) == ServiceError::None);
+
+    std::uint32_t firstLoan = 0;
+    std::uint32_t secondLoan = 0;
+    std::uint32_t thirdLoan = 0;
+
+    CHECK(t, service.loanBook(firstBorrower.getId(), firstBook.getId(),
+        kLoanDate, firstLoan) == ServiceError::None);
+    CHECK(t, service.loanBook(firstBorrower.getId(), secondBook.getId(),
+        kLoanDate, secondLoan) == ServiceError::None);
+    CHECK(t, service.loanBook(secondBorrower.getId(), thirdBook.getId(),
+        kLoanDate, thirdLoan) == ServiceError::None);
+
+    std::vector<LoanTransaction> open;
+    CHECK(t, service.findOpenLoans(firstBorrower.getId(), open)
+        == ServiceError::None);
+    CHECK(t, open.size() == 2u);
+
+    CHECK(t, service.findOpenLoans(secondBorrower.getId(), open)
+        == ServiceError::None);
+    CHECK(t, open.size() == 1u);
+
+    CHECK(t, service.returnLoan(firstLoan, kReturnDate) == ServiceError::None);
+
+    CHECK(t, service.findOpenLoans(firstBorrower.getId(), open)
+        == ServiceError::None);
+    CHECK(t, open.size() == 1u);
+    if (open.size() == 1u) {
+        CHECK(t, open[0].getId() == secondLoan);
+    }
+}
+
+void testDeleteBorrowerWithOpenLoanRefused(TestContext& t) {
+    TempDir dir("libster_service_borrower_loan_delete");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower();
+    Book book = makeBook();
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addBook(book) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+    CHECK(t, service.loanBook(borrower.getId(), book.getId(), kLoanDate, loanId)
+        == ServiceError::None);
+
+    CHECK(t, service.deleteBorrower(borrower.getId()) == ServiceError::HasOpenLoans);
+
+    CHECK(t, service.returnLoan(loanId, kReturnDate) == ServiceError::None);
+    CHECK(t, service.deleteBorrower(borrower.getId()) == ServiceError::None);
+}
+
+void testDeleteBookWithOpenLoanRefused(TestContext& t) {
+    TempDir dir("libster_service_book_loan_delete");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower();
+    Book book = makeBook();
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addBook(book) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+    CHECK(t, service.loanBook(borrower.getId(), book.getId(), kLoanDate, loanId)
+        == ServiceError::None);
+
+    CHECK(t, service.deleteBook(book.getId()) == ServiceError::HasOpenLoans);
+
+    CHECK(t, service.returnLoan(loanId, kReturnDate) == ServiceError::None);
+    CHECK(t, service.deleteBook(book.getId()) == ServiceError::None);
+}
+
+void testReloanAfterReturn(TestContext& t) {
+    TempDir dir("libster_service_reloan");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower();
+    Book book = makeBook();
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addBook(book) == ServiceError::None);
+
+    std::uint32_t firstLoan = 0;
+    CHECK(t, service.loanBook(borrower.getId(), book.getId(), kLoanDate, firstLoan)
+        == ServiceError::None);
+
+    CHECK(t, service.returnLoan(firstLoan, kReturnDate) == ServiceError::None);
+
+    std::uint32_t secondLoan = 0;
+    CHECK(t, service.loanBook(borrower.getId(), book.getId(),
+        kReturnDate + 60, secondLoan) == ServiceError::None);
+    CHECK(t, secondLoan != firstLoan);
+
+    std::optional<Book> loanedBook;
+    CHECK(t, service.getBook(book.getId(), loanedBook) == ServiceError::None);
+    CHECK(t, loanedBook.has_value());
+    if (loanedBook) {
+        CHECK(t, loanedBook->getStatus() == Status::LOANED);
     }
 }
 
@@ -499,6 +820,8 @@ void testFindBorrowersNoMatch(TestContext& t) {
     CHECK(t, hits.empty());
 }
 
+
+
 // Books
 void testAddBookAssignsIdAndRoundtrip(TestContext& t) {
     TempDir dir("libster_service_book_add");
@@ -651,7 +974,7 @@ void testDeleteBookTwiceFails(TestContext& t) {
     CHECK(t, service.deleteBook(book.getId()) == ServiceError::NotFound);
 }
 
-void testDeleteBookWithOpenLoanRefused(TestContext& t) {
+void testDeleteBookWithRawOpenLoanRefused(TestContext& t) {
     TempDir dir("libster_service_book_loan");
     LibraryService service;
     CHECK(t, service.open(dir.path()) == IoError::None);
@@ -795,6 +1118,42 @@ void testFindBooksNoMatch(TestContext& t) {
     std::vector<Book> hits(2, makeBook("Old"));
     CHECK(t, service.findBooks("zzz", hits) == ServiceError::None);
     CHECK(t, hits.empty());
+}
+
+void testLoanBook(TestContext& t) {
+    TempDir dir("libster_service_loan_book");
+    LibraryService service;
+    service.setRecordedBy("Tester");
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower("Mustermann");
+    Book book = makeBook("Effective C++");
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addBook(book) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+    CHECK(t, service.loanBook(borrower.getId(), book.getId(), kLoanDate, loanId)
+        == ServiceError::None);
+    CHECK(t, loanId == 1u);
+
+    std::optional<LoanTransaction> loan;
+    CHECK(t, service.getLoan(loanId, loan) == ServiceError::None);
+    CHECK(t, loan.has_value());
+    if (!loan) return;
+
+    CHECK(t, loan->getBorrowerId() == borrower.getId());
+    CHECK(t, loan->getMediumId() == book.getId());
+    CHECK(t, loan->getType() == MediumType::BOOK);
+    CHECK(t, loan->getLoanDate() == kLoanDate);
+    CHECK(t, loan->getReturnDate() == 0);
+    CHECK(t, loan->getRecordedBy() == "Tester");
+
+    std::optional<Book> loanedBook;
+    CHECK(t, service.getBook(book.getId(), loanedBook) == ServiceError::None);
+    CHECK(t, loanedBook.has_value());
+    if (loanedBook) {
+        CHECK(t, loanedBook->getStatus() == Status::LOANED);
+    }
 }
 
 // CDs
@@ -994,6 +1353,40 @@ void testFindCDsNumericQueryMatchesId(TestContext& t) {
     CHECK(t, hits.empty());
 }
 
+void testLoanCD(TestContext& t) {
+    TempDir dir("libster_service_loan_cd");
+    LibraryService service;
+    service.setRecordedBy("Tester");
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower("Mustermann");
+    CD cd = makeCD("Kind of Blue");
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addCD(cd) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+    CHECK(t, service.loanCD(borrower.getId(), cd.getId(), kLoanDate, loanId)
+        == ServiceError::None);
+    CHECK(t, loanId == 1u);
+
+    std::optional<LoanTransaction> loan;
+    CHECK(t, service.getLoan(loanId, loan) == ServiceError::None);
+    CHECK(t, loan.has_value());
+    if (!loan) return;
+
+    CHECK(t, loan->getBorrowerId() == borrower.getId());
+    CHECK(t, loan->getMediumId() == cd.getId());
+    CHECK(t, loan->getType() == MediumType::CD);
+    CHECK(t, loan->getReturnDate() == 0);
+
+    std::optional<CD> loanedCD;
+    CHECK(t, service.getCD(cd.getId(), loanedCD) == ServiceError::None);
+    CHECK(t, loanedCD.has_value());
+    if (loanedCD) {
+        CHECK(t, loanedCD->getStatus() == Status::LOANED);
+    }
+}
+
 // Book & CD
 
 void testBookAndCDIdsAreIndependent(TestContext& t) {
@@ -1049,6 +1442,23 @@ void runLibraryServiceTests(libster::test::TestContext& t) {
     testOpenCreatesFilesAndCloses(t);
     testOpenRejectsWrongFileType(t);
     testOpenPreservesData(t);
+    testLoanRejectsUnknownBorrower(t);
+    testLoanRejectsDeletedBorrower(t);
+    testLoanRejectsUnknownMedium(t);
+    testLoanRejectsDeletedMedium(t);
+    testLoanRejectsAlreadyLoaned(t);
+    testLoanRejectsNegativeDate(t);
+    testLoanOnClosedService(t);
+    testReturnLoan(t);
+    testReturnLoanUnknown(t);
+    testReturnLoanTwice(t);
+    testReturnLoanBeforeLoanDate(t);
+    testReturnLoanZeroDate(t);
+    testFindOpenLoans(t);
+    testDeleteBorrowerWithOpenLoanRefused(t);
+    testDeleteBookWithOpenLoanRefused(t);
+    testReloanAfterReturn(t);
+
     testAddBorrowerAssignsIds(t);
     testAddBorrowerRejectsAssignedId(t);
     testClosedServiceRejectsOperations(t);
@@ -1074,12 +1484,13 @@ void runLibraryServiceTests(libster::test::TestContext& t) {
     testUpdateDeletedBookFails(t);
     testDeleteBookMarksDeleted(t);
     testDeleteBookTwiceFails(t);
-    testDeleteBookWithOpenLoanRefused(t);
+    testDeleteBookWithRawOpenLoanRefused(t);
     testDeleteBookAfterReturnSucceeds(t);
     testFindBooksEmptyQueryReturnsActive(t);
     testFindBooksSubstringCaseInsensitive(t);
     testFindBooksNumericQueryMatchesId(t);
     testFindBooksNoMatch(t);
+    testLoanBook(t);
 
     testAddCDAssignsIdAndRoundtrip(t);
     testAddCDRejectsAssignedId(t);
@@ -1090,6 +1501,7 @@ void runLibraryServiceTests(libster::test::TestContext& t) {
     testDeleteCDWithOpenLoanRefused(t);
     testFindCDsSubstringAndFields(t);
     testFindCDsNumericQueryMatchesId(t);
+    testLoanCD(t);
 
     testBookAndCDIdsAreIndependent(t);
     testClosedServiceRejectsBookAndCDOperations(t);
