@@ -521,6 +521,33 @@ ServiceError LibraryService::findOpenLoans(std::uint32_t borrowerId, std::vector
     return ServiceError::None;
 }
 
+ServiceError LibraryService::dailyReport(std::int64_t dayStart, std::int64_t dayEnd, DailyReport& out) {
+    out = DailyReport{};
+    if (!isOpen()) return ServiceError::NotOpen;
+    if (dayStart < 0 || dayEnd <= dayStart) return ServiceError::InvalidData;
+
+    // Nur vorgänge laden, die im Zeitraum relevant sind
+    const auto relevant = [dayStart, dayEnd](const LoanTransactionRecord& loan) {
+        const bool borrowed = loan.loanDate >= dayStart && loan.loanDate < dayEnd;
+        const bool returned = loan.returnDate != 0 && loan.returnDate >= dayStart && loan.returnDate < dayEnd;
+        return borrowed || returned;
+    };
+    std::vector<LoanTransactionRecord> records;
+    const IoError error = loans_.findAll<LoanTransactionRecord>(relevant, records);
+    if (error != IoError::None) return toServiceError(error);
+
+    for (const LoanTransactionRecord& loan : records) {
+        if (loan.loanDate >= dayStart && loan.loanDate < dayEnd) {
+            ++out.loanCount;
+        }
+        if (loan.returnDate != 0 && loan.returnDate >= dayStart && loan.returnDate < dayEnd) {
+            ++out.returnCount;
+        }
+    }
+
+    return ServiceError::None;
+}
+
 // Session
 
 void LibraryService::setRecordedBy(std::string recordedBy){

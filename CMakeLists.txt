@@ -20,6 +20,7 @@ endfunction()
 # 1) Qt-freie Core-Lib
 add_library(libster_core STATIC
     src/core/Version.cpp
+    src/core/TimeUtil.cpp
     src/core/model/Borrower.cpp
     src/core/model/Medium.cpp
     src/core/model/Book.cpp
@@ -48,6 +49,7 @@ enable_testing()
 
 add_executable(libster_tests
     tests/test_main.cpp
+    tests/test_timeutil.cpp
     tests/test_persistence.cpp
     tests/test_borrower.cpp
     tests/test_binaryfile.cpp

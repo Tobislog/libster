@@ -31,6 +31,7 @@ using libster::BorrowerRecord;
 using libster::BorrowerStatus;
 using libster::CD;
 using libster::CDRecord;
+using libster::DailyReport;
 using libster::FileType;
 using libster::IoError;
 using libster::LibraryService;
@@ -136,6 +137,8 @@ std::uint32_t appendRawLoan(
 
 constexpr std::int64_t kLoanDate = 1760000000LL;
 constexpr std::int64_t kReturnDate = 1760003600LL;
+constexpr std::int64_t kDayStart = 1760000000LL;
+constexpr std::int64_t kDayEnd = 1760086400LL;
 
 // General
 
@@ -1436,6 +1439,135 @@ void testClosedServiceRejectsBookAndCDOperations(TestContext& t) {
     CHECK(t, service.findCDs("", cds) == ServiceError::NotOpen);
 }
 
+// DailyReport
+
+void testDailyReportCounts(TestContext& t) {
+    TempDir dir("libster_service_daily_report_counts");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower();
+    Book returned = makeBook("Returned");
+    Book open = makeBook("Open");
+    Book outside = makeBook("Outside");
+    Book returnOnly = makeBook("ReturnOnly");
+
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addBook(returned) == ServiceError::None);
+    CHECK(t, service.addBook(open) == ServiceError::None);
+    CHECK(t, service.addBook(outside) == ServiceError::None);
+    CHECK(t, service.addBook(returnOnly) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+
+    // Ausleihe und Rueckgabe im Zeitraum.
+    CHECK(t, service.loanBook(borrower.getId(), returned.getId(),
+        kDayStart + 100, loanId) == ServiceError::None);
+    CHECK(t, service.returnLoan(loanId, kDayStart + 200)
+        == ServiceError::None);
+
+    // Offene Ausleihe im Zeitraum.
+    CHECK(t, service.loanBook(borrower.getId(), open.getId(),
+        kDayStart + 300, loanId) == ServiceError::None);
+
+    // Ausleihe und Rueckgabe ausserhalb.
+    CHECK(t, service.loanBook(borrower.getId(), outside.getId(),
+        kDayEnd + 100, loanId) == ServiceError::None);
+    CHECK(t, service.returnLoan(loanId, kDayEnd + 200)
+        == ServiceError::None);
+
+    // Ausleihe vor dem Zeitraum, Rueckgabe im Zeitraum.
+    CHECK(t, service.loanBook(borrower.getId(), returnOnly.getId(),
+        kDayStart - 1000, loanId) == ServiceError::None);
+    CHECK(t, service.returnLoan(loanId, kDayStart + 400)
+        == ServiceError::None);
+
+    DailyReport report;
+    CHECK(t, service.dailyReport(kDayStart, kDayEnd, report)
+        == ServiceError::None);
+    CHECK(t, report.loanCount == 2u);
+    CHECK(t, report.returnCount == 2u);
+}
+
+void testDailyReportBoundaries(TestContext& t) {
+    TempDir dir("libster_service_daily_report_boundaries");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower borrower = makeBorrower();
+    Book atStart = makeBook("AtStart");
+    Book returnAtStart = makeBook("ReturnAtStart");
+    Book atEnd = makeBook("AtEnd");
+    Book returnAtEnd = makeBook("ReturnAtEnd");
+
+    CHECK(t, service.addBorrower(borrower) == ServiceError::None);
+    CHECK(t, service.addBook(atStart) == ServiceError::None);
+    CHECK(t, service.addBook(returnAtStart) == ServiceError::None);
+    CHECK(t, service.addBook(atEnd) == ServiceError::None);
+    CHECK(t, service.addBook(returnAtEnd) == ServiceError::None);
+
+    std::uint32_t loanId = 0;
+
+    // Genau auf dayStart: zaehlt.
+    CHECK(t, service.loanBook(borrower.getId(), atStart.getId(),
+        kDayStart, loanId) == ServiceError::None);
+
+    // Rueckgabe genau auf dayStart: zaehlt.
+    CHECK(t, service.loanBook(borrower.getId(), returnAtStart.getId(),
+        kDayStart - 100, loanId) == ServiceError::None);
+    CHECK(t, service.returnLoan(loanId, kDayStart) == ServiceError::None);
+
+    // Genau auf dayEnd: zaehlt nicht.
+    CHECK(t, service.loanBook(borrower.getId(), atEnd.getId(),
+        kDayEnd, loanId) == ServiceError::None);
+
+    // Rueckgabe genau auf dayEnd: zaehlt nicht.
+    CHECK(t, service.loanBook(borrower.getId(), returnAtEnd.getId(),
+        kDayStart - 100, loanId) == ServiceError::None);
+    CHECK(t, service.returnLoan(loanId, kDayEnd) == ServiceError::None);
+
+    DailyReport report;
+    CHECK(t, service.dailyReport(kDayStart, kDayEnd, report)
+        == ServiceError::None);
+    CHECK(t, report.loanCount == 1u);
+    CHECK(t, report.returnCount == 1u);
+}
+
+void testDailyReportEmptyDay(TestContext& t) {
+    TempDir dir("libster_service_daily_report_empty");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    DailyReport report;
+    report.loanCount = 5;
+    report.returnCount = 5;
+
+    CHECK(t, service.dailyReport(kDayStart, kDayEnd, report)
+        == ServiceError::None);
+    CHECK(t, report.loanCount == 0u);
+    CHECK(t, report.returnCount == 0u);
+}
+
+void testDailyReportInvalidRange(TestContext& t) {
+    TempDir dir("libster_service_daily_report_invalid");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    DailyReport report;
+    CHECK(t, service.dailyReport(kDayStart, kDayStart, report)
+        == ServiceError::InvalidData);
+    CHECK(t, service.dailyReport(kDayEnd, kDayStart, report)
+        == ServiceError::InvalidData);
+    CHECK(t, report.loanCount == 0u);
+    CHECK(t, report.returnCount == 0u);
+
+    service.close();
+    report.loanCount = 7;
+    CHECK(t, service.dailyReport(kDayStart, kDayEnd, report)
+        == ServiceError::NotOpen);
+    CHECK(t, report.loanCount == 0u);
+}
+
 } // namespace
 
 void runLibraryServiceTests(libster::test::TestContext& t) {
@@ -1505,4 +1637,9 @@ void runLibraryServiceTests(libster::test::TestContext& t) {
 
     testBookAndCDIdsAreIndependent(t);
     testClosedServiceRejectsBookAndCDOperations(t);
+
+    testDailyReportCounts(t);
+    testDailyReportBoundaries(t);
+    testDailyReportEmptyDay(t);
+    testDailyReportInvalidRange(t);
 }

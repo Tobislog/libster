@@ -11,6 +11,7 @@
 #include "core/model/LoanTransaction.h"
 #include "core/persistence/BinaryFile.h"
 #include "core/persistence/IoError.h"
+#include "core/services/DailyReport.h"
 #include "core/services/ServiceError.h"
 
 namespace libster {
@@ -54,6 +55,7 @@ public:
     ServiceError returnLoan(std::uint32_t loanId, std::int64_t returnDate);
     ServiceError getLoan(std::uint32_t loanId, std::optional<LoanTransaction>& out);
     ServiceError findOpenLoans(std::uint32_t borrowerId, std::vector<LoanTransaction>& out);
+    ServiceError dailyReport(std::int64_t dayStart, std::int64_t dayEnd, DailyReport& out);
 
     // Session
     void setRecordedBy(std::string recordedBy);

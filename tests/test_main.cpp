@@ -10,6 +10,7 @@ void runBinaryFileTests(libster::test::TestContext& t);
 void runModelTests(libster::test::TestContext& t);
 void runLoanTransactionTests(libster::test::TestContext& t);
 void runLibraryServiceTests(libster::test::TestContext& t);
+void runTimeUtilTests(libster::test::TestContext& t);
 
 int main() {
     libster::test::TestContext t;
@@ -21,6 +22,7 @@ int main() {
     runModelTests(t);
     runLoanTransactionTests(t);
     runLibraryServiceTests(t);
+    runTimeUtilTests(t);
 
     if (t.passed()) {
         std::cout << "Alle Tests bestanden.\n";
