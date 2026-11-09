@@ -39,4 +39,19 @@ void showServiceError(QWidget* parent, ServiceError error, const QString& contex
     QMessageBox::warning(parent, context.isEmpty() ? QStringLiteral("Fehler") : context, serviceErrorMessage(error));
 }
 
+QString formatPrice(std::uint32_t cents){
+    return QStringLiteral("%1,%2 €")
+        .arg(static_cast<qulonglong>(cents / 100))
+        .arg(static_cast<int>(cents % 100), 2, 10, QLatin1Char('0'));
+}
+
+QString statusText(Status status) {
+    switch (status) {
+        case Status::AVAILABLE: return QStringLiteral("Verfügbar");
+        case Status::LOANED:    return QStringLiteral("Ausgeliehen");
+        case Status::DELETED:   return QStringLiteral("Gelöscht");
+    }
+    return {};
+}
+
 } // namespace libster::gui

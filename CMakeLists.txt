@@ -43,6 +43,14 @@ qt_add_executable(libster
     src/gui/MainWindow.h
     src/gui/StartupDialog.cpp
     src/gui/StartupDialog.h
+    src/gui/BookTableModel.cpp
+    src/gui/BookTableModel.h
+    src/gui/CDTableModel.cpp
+    src/gui/CDTableModel.h
+    src/gui/BookTab.cpp
+    src/gui/BookTab.h
+    src/gui/CDTab.cpp
+    src/gui/CDTab.h
 )
 target_link_libraries(libster PRIVATE
     libster_core
