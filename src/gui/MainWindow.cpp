@@ -4,6 +4,7 @@
 
 #include <QAction>
 #include <QDir>
+#include <QDockWidget>
 #include <QFont>
 #include <QKeySequence>
 #include <QLabel>
@@ -18,6 +19,7 @@
 #include "gui/BookTab.h"
 #include "gui/CDTab.h"
 #include "gui/BorrowerTab.h"
+#include "gui/LoanSidebar.h"
 
 namespace {
 
@@ -50,6 +52,7 @@ MainWindow::MainWindow(LibraryService& service, QString dataDirectory, QString r
     resize(1100, 700);
 
     createTabs();
+    createLoanSidebar();
     createMenus();
     createStatusBar();
 }
@@ -88,6 +91,21 @@ void MainWindow::createStatusBar() {
     auto* userLabel = new QLabel(
         QStringLiteral("Erfasst von: %1").arg(recordedBy_), this);
     statusBar()->addPermanentWidget(userLabel);
+}
+
+void MainWindow::createLoanSidebar() {
+    loanSidebar_ = new LoanSidebar(service_, this);
+    loanSidebar_->setMinimumWidth(340);
+
+    auto* dock = new QDockWidget(QStringLiteral("Ausleihe"), this);
+    dock->setObjectName(QStringLiteral("loanDock"));
+    dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    dock->setWidget(loanSidebar_);
+
+    addDockWidget(Qt::LeftDockWidgetArea, dock);
+
+    connect(loanSidebar_, &LoanSidebar::loansChanged,bookTab_, &BookTab::refresh);
+    connect(loanSidebar_, &LoanSidebar::loansChanged,cdTab_, &CDTab::refresh);
 }
 
 } // namespace libster::gui
