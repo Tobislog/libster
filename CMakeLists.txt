@@ -37,6 +37,12 @@ libster_enable_warnings(libster_core)
 # 2) Qt-GUI
 qt_add_executable(libster
     src/gui/main.cpp
+    src/gui/GuiUtil.cpp
+    src/gui/GuiUtil.h
+    src/gui/MainWindow.cpp
+    src/gui/MainWindow.h
+    src/gui/StartupDialog.cpp
+    src/gui/StartupDialog.h
 )
 target_link_libraries(libster PRIVATE
     libster_core
