@@ -17,6 +17,7 @@
 #include "core/services/LibraryService.h"
 #include "gui/BookTab.h"
 #include "gui/CDTab.h"
+#include "gui/BorrowerTab.h"
 
 namespace {
 
@@ -58,10 +59,11 @@ void MainWindow::createTabs() {
 
     bookTab_ = new BookTab(service_, tabs);
     cdTab_ = new CDTab(service_, tabs);
+    borrowerTab_ = new BorrowerTab(service_, tabs);
     
     tabs->addTab(bookTab_, QStringLiteral("Bücher"));
     tabs->addTab(cdTab_, QStringLiteral("CDs"));
-    tabs->addTab(makePlaceholderTab(QStringLiteral("Die Ausleiherverwaltung folgt in M5.3.")), QStringLiteral("Ausleiher"));
+    tabs->addTab(borrowerTab_, QStringLiteral("Ausleiher"));
     tabs->addTab(makePlaceholderTab(QStringLiteral("Das Berichtsmodul folgt in M5.5.")), QStringLiteral("Bericht"));
 
     setCentralWidget(tabs);

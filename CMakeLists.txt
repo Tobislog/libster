@@ -56,6 +56,12 @@ qt_add_executable(libster
     src/gui/BookDialog.h
     src/gui/CDDialog.cpp
     src/gui/CDDialog.h
+    src/gui/BorrowerTableModel.cpp
+    src/gui/BorrowerTableModel.h
+    src/gui/BorrowerTab.cpp
+    src/gui/BorrowerTab.h
+    src/gui/BorrowerDialog.cpp
+    src/gui/BorrowerDialog.h
 )
 target_link_libraries(libster PRIVATE
     libster_core

@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
     }
 
     const char* const kFileNames[] = {
-        "borowers.bin",
+        "borrowers.bin",
         "books.bin",
         "cds.bin",
         "loan_transactions.bin"

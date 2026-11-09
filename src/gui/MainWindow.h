@@ -7,12 +7,11 @@ namespace libster {
     class LibraryService;
 }
 
-
-
 namespace libster::gui {
 
 class BookTab;
 class CDTab;
+class BorrowerTab;
 
 class MainWindow final : public QMainWindow {
     Q_OBJECT
@@ -30,6 +29,7 @@ private:
     QString recordedBy_;
     BookTab* bookTab_ = nullptr;
     CDTab* cdTab_ = nullptr;
+    BorrowerTab* borrowerTab_ = nullptr;
 };
 
 } // namespace libster::gui
