@@ -6,10 +6,9 @@
 
 #include "BorrowerStatus.h"
 #include "core/persistence/BorrowerRecord.h"
+#include "core/model/Ids.h"
 
 namespace libster {
-
-inline constexpr std::uint32_t kUnassignedId = 0; // noch nicht persistiert
 
 class Borrower {
 public:

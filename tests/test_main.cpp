@@ -9,6 +9,7 @@ void runBorrowerTests(libster::test::TestContext& t);
 void runBinaryFileTests(libster::test::TestContext& t);
 void runModelTests(libster::test::TestContext& t);
 void runLoanTransactionTests(libster::test::TestContext& t);
+void runValidationTests(libster::test::TestContext& t);
 void runLibraryServiceTests(libster::test::TestContext& t);
 void runTimeUtilTests(libster::test::TestContext& t);
 
@@ -21,6 +22,7 @@ int main() {
     runBinaryFileTests(t);
     runModelTests(t);
     runLoanTransactionTests(t);
+    runValidationTests(t);
     runLibraryServiceTests(t);
     runTimeUtilTests(t);
 

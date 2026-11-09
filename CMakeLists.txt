@@ -21,6 +21,7 @@ endfunction()
 add_library(libster_core STATIC
     src/core/Version.cpp
     src/core/TimeUtil.cpp
+    src/core/Validation.cpp
     src/core/model/Borrower.cpp
     src/core/model/Medium.cpp
     src/core/model/Book.cpp
@@ -51,6 +52,8 @@ qt_add_executable(libster
     src/gui/BookTab.h
     src/gui/CDTab.cpp
     src/gui/CDTab.h
+    src/gui/BookDialog.cpp
+    src/gui/BookDialog.h
 )
 target_link_libraries(libster PRIVATE
     libster_core
@@ -70,6 +73,7 @@ add_executable(libster_tests
     tests/test_models.cpp
     tests/test_loan_transaction.cpp
     tests/test_library_service.cpp
+    tests/test_validation.cpp
 )
 target_link_libraries(libster_tests PRIVATE libster_core)
 libster_enable_warnings(libster_tests)

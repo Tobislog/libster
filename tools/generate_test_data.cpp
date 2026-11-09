@@ -72,6 +72,20 @@ std::string padded(std::uint32_t value, std::size_t width) {
     return text;
 }
 
+std::string makeIsbn(std::uint32_t index) {
+    std::string base = "978" + padded(index, 9);
+
+    int sum = 0;
+    for(std::size_t i = 0; i < base.size(); ++i) {
+        const int digit = base[i] - '0';
+        sum += (i % 2 == 0) ? digit : digit * 3;
+    }
+
+    const int check = (10 - (sum % 10)) % 10;
+    base.push_back(static_cast<char>('0' + check));
+    return base;
+}
+
 constexpr const char* kTopics[] = { "Algorithmen", "Datenbanken", "Netzwerke","Mathematik", "Physik", "Geschichte" };
 constexpr std::size_t kTopicCount = sizeof(kTopics) / sizeof(kTopics[0]);
 constexpr const char* kPublishers[] = { "O'Reilly", "Hanser", "Springer", "dpunkt", "Pearson" };
@@ -113,7 +127,7 @@ Book makeBook(std::uint32_t index) {
         "Regal B" + padded(index, 4),
         static_cast<std::uint32_t>(1000 + (index % 50) * 100),
         "Generator",
-        "ISBN-" + padded(index, 6),
+        makeIsbn(index),
         static_cast<std::uint16_t>(1 + index % 5),
         kAuthors[index % kAuthorCount],
         static_cast<std::uint16_t>(100 + index % 900)
