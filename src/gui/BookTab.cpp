@@ -6,6 +6,7 @@
 #include <QAbstractItemView>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QItemSelectionModel>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -14,7 +15,9 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include "core/TimeUtil.h"
 #include "core/model/Book.h"
+#include "core/model/Status.h"
 #include "core/services/LibraryService.h"
 #include "gui/BookDialog.h"
 #include "gui/BookTableModel.h"
@@ -36,17 +39,21 @@ BookTab::BookTab(LibraryService& service, QWidget* parent) : QWidget(parent), se
     searchRow->addWidget(searchEdit_, 1);
     searchRow->addWidget(countLabel_);
 
-    auto* addButton = new QPushButton(QStringLiteral("Neu"), this);
+    addButton_ = new QPushButton(QStringLiteral("Neu"), this);
     editButton_ = new QPushButton(QStringLiteral("Bearbeiten"), this);
     deleteButton_ = new QPushButton(QStringLiteral("Löschen"), this);
+    loanButton_ = new QPushButton(QStringLiteral("Ausleihen"), this);
 
     editButton_->setEnabled(false);
     deleteButton_->setEnabled(false);
+    loanButton_->setVisible(false);
+    loanButton_->setEnabled(false);
 
     auto* actionRow = new QHBoxLayout;
-    actionRow->addWidget(addButton);
+    actionRow->addWidget(addButton_);
     actionRow->addWidget(editButton_);
     actionRow->addWidget(deleteButton_);
+    actionRow->addWidget(loanButton_);
     actionRow->addStretch(1);
 
     model_ = new BookTableModel(this);
@@ -72,16 +79,29 @@ BookTab::BookTab(LibraryService& service, QWidget* parent) : QWidget(parent), se
         searchTimer_->start();
     });
     connect(searchTimer_, &QTimer::timeout, this, &BookTab::refresh);
-    connect(addButton, &QPushButton::clicked, this, &BookTab::addBook);
+    connect(addButton_, &QPushButton::clicked, this, &BookTab::addBook);
     connect(editButton_, &QPushButton::clicked, this, &BookTab::editSelected);
     connect(deleteButton_, &QPushButton::clicked, this, &BookTab::deleteSelected);
-    connect(table_, &QTableView::doubleClicked, this, &BookTab::editSelected);
+    connect(loanButton_, &QPushButton::clicked, this, &BookTab::loanSelected);
+    connect(table_, &QTableView::doubleClicked, this, &BookTab::handleDoubleClick);
     connect(table_->selectionModel(), &QItemSelectionModel::selectionChanged, this, [this] { updateActions(); });
 
     refresh();
 
     table_->resizeColumnsToContents();
     table_->horizontalHeader()->setSectionResizeMode(BookTableModel::Title, QHeaderView::Stretch);
+}
+
+void BookTab::setBorrowerId(std::uint32_t borrowerId) {
+    borrowerId_ = borrowerId;
+    const bool lending = borrowerId_ != 0;
+
+    addButton_->setVisible(!lending);
+    editButton_->setVisible(!lending);
+    deleteButton_->setVisible(!lending);
+    loanButton_->setVisible(lending);
+
+    updateActions();
 }
 
 void BookTab::refresh() {
@@ -108,13 +128,25 @@ int BookTab::selectedRow() const {
 
 void BookTab::updateActions() {
     const bool hasSelection = selectedRow() >= 0;
-    editButton_->setEnabled(hasSelection);
-    deleteButton_->setEnabled(hasSelection);
+    const bool lending = borrowerId_ != 0;
+
+    editButton_->setEnabled(hasSelection && !lending);
+    deleteButton_->setEnabled(hasSelection && !lending);
+    loanButton_->setEnabled(hasSelection && lending);
+}
+
+void BookTab::handleDoubleClick() {
+    if (borrowerId_ == 0) {
+        editSelected();
+    } else {
+        loanSelected();
+    }
 }
 
 void BookTab::addBook() {
     BookDialog dialog(toQString(service_.getRecordedBy()), this);
     if (dialog.exec() != QDialog::Accepted) return;
+
     Book book = dialog.book();
     const ServiceError error = service_.addBook(book);
     if (error != ServiceError::None) {
@@ -125,6 +157,8 @@ void BookTab::addBook() {
 }
 
 void BookTab::editSelected() {
+    if (borrowerId_ != 0) return;
+
     const int row = selectedRow();
     if (row < 0) return;
 
@@ -141,6 +175,8 @@ void BookTab::editSelected() {
 }
 
 void BookTab::deleteSelected() {
+    if (borrowerId_ != 0) return;
+
     const int row = selectedRow();
     if (row < 0) return;
 
@@ -162,6 +198,45 @@ void BookTab::deleteSelected() {
         return;    
     }
     refresh();
+}
+
+void BookTab::loanSelected() {
+    if (borrowerId_ == 0) return;
+
+    const int row = selectedRow();
+    if (row < 0) return;
+
+    const Book& book = model_->bookAt(row);
+
+    if (book.getStatus() != Status::AVAILABLE) {
+        QMessageBox::information(this, QStringLiteral("Ausleihen"), QStringLiteral("Dieses Buch ist derzeit nicht verfügbar."));
+        return;
+    }
+
+    const auto answer = QMessageBox::question(
+        this,
+        QStringLiteral("Buch ausleihen"),
+        QStringLiteral("Soll \"%1\" an Ausleiher %2 ausgeliehen werden?")
+            .arg(toQString(book.getTitle()))
+            .arg(borrowerId_),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No
+    );
+    if (answer != QMessageBox::Yes) return;
+
+    std::uint32_t loanId = 0;
+    const ServiceError error = service_.loanBook(borrowerId_, book.getId(), nowEpochSeconds(), loanId);
+
+    if (error != ServiceError::None) {
+        showServiceError(this, error, QStringLiteral("Buch ausleihen"));
+        refresh();
+        emit loansChanged();
+        return;
+    }
+
+    refresh();
+    emit loansChanged();
+
 }
 
 } // namespace libster::gui

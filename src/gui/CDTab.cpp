@@ -15,7 +15,9 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include "core/TimeUtil.h"
 #include "core/model/CD.h"
+#include "core/model/Status.h"
 #include "core/services/LibraryService.h"
 #include "gui/CDDialog.h"
 #include "gui/CDTableModel.h"
@@ -39,17 +41,21 @@ CDTab::CDTab(LibraryService& service, QWidget* parent)
     searchRow->addWidget(searchEdit_, 1);
     searchRow->addWidget(countLabel_);
 
-    auto* addButton = new QPushButton(QStringLiteral("Neu"), this);
+    addButton_ = new QPushButton(QStringLiteral("Neu"), this);
     editButton_ = new QPushButton(QStringLiteral("Bearbeiten"), this);
     deleteButton_ = new QPushButton(QStringLiteral("Löschen"), this);
+    loanButton_ = new QPushButton(QStringLiteral("Ausleihen"), this);
 
     editButton_->setEnabled(false);
     deleteButton_->setEnabled(false);
+    loanButton_->setVisible(false);
+    loanButton_->setEnabled(false);
 
     auto* actionRow = new QHBoxLayout;
-    actionRow->addWidget(addButton);
+    actionRow->addWidget(addButton_);
     actionRow->addWidget(editButton_);
     actionRow->addWidget(deleteButton_);
+    actionRow->addWidget(loanButton_);
     actionRow->addStretch(1);
 
     model_ = new CDTableModel(this);
@@ -76,13 +82,15 @@ CDTab::CDTab(LibraryService& service, QWidget* parent)
     });
     connect(searchTimer_, &QTimer::timeout, this, &CDTab::refresh);
 
-    connect(addButton, &QPushButton::clicked, this, &CDTab::addCD);
+    connect(addButton_, &QPushButton::clicked, this, &CDTab::addCD);
     connect(editButton_, &QPushButton::clicked,
             this, &CDTab::editSelected);
     connect(deleteButton_, &QPushButton::clicked,
             this, &CDTab::deleteSelected);
+    connect(loanButton_, &QPushButton::clicked,
+            this, &CDTab::loanSelected);
     connect(table_, &QTableView::doubleClicked,
-            this, &CDTab::editSelected);
+            this, &CDTab::handleDoubleClick);
     connect(table_->selectionModel(), &QItemSelectionModel::selectionChanged,
             this, [this] { updateActions(); });
 
@@ -91,6 +99,18 @@ CDTab::CDTab(LibraryService& service, QWidget* parent)
     table_->resizeColumnsToContents();
     table_->horizontalHeader()->setSectionResizeMode(
         CDTableModel::Title, QHeaderView::Stretch);
+}
+
+void CDTab::setBorrowerId(std::uint32_t borrowerId) {
+    borrowerId_ = borrowerId;
+    const bool lending = borrowerId_ != 0;
+
+    addButton_->setVisible(!lending);
+    editButton_->setVisible(!lending);
+    deleteButton_->setVisible(!lending);
+    loanButton_->setVisible(lending);
+
+    updateActions();
 }
 
 void CDTab::refresh() {
@@ -123,8 +143,19 @@ int CDTab::selectedRow() const {
 
 void CDTab::updateActions() {
     const bool hasSelection = selectedRow() >= 0;
-    editButton_->setEnabled(hasSelection);
-    deleteButton_->setEnabled(hasSelection);
+    const bool lending = borrowerId_ != 0;
+
+    editButton_->setEnabled(hasSelection && !lending);
+    deleteButton_->setEnabled(hasSelection && !lending);
+    loanButton_->setEnabled(hasSelection && lending);
+}
+
+void CDTab::handleDoubleClick() {
+    if (borrowerId_ == 0) {
+        editSelected();
+    } else {
+        loanSelected();
+    }
 }
 
 void CDTab::addCD() {
@@ -142,6 +173,8 @@ void CDTab::addCD() {
 }
 
 void CDTab::editSelected() {
+    if (borrowerId_ != 0) return;
+
     const int row = selectedRow();
     if (row < 0) return;
 
@@ -158,6 +191,8 @@ void CDTab::editSelected() {
 }
 
 void CDTab::deleteSelected() {
+    if (borrowerId_ != 0) return;
+
     const int row = selectedRow();
     if (row < 0) return;
 
@@ -180,6 +215,46 @@ void CDTab::deleteSelected() {
     }
 
     refresh();
+}
+
+void CDTab::loanSelected() {
+    if (borrowerId_ == 0) return;
+
+    const int row = selectedRow();
+    if (row < 0) return;
+
+    const CD& cd = model_->cdAt(row);
+
+    if (cd.getStatus() != Status::AVAILABLE) {
+        QMessageBox::information(
+            this, QStringLiteral("Ausleihen"),
+            QStringLiteral("Diese CD ist derzeit nicht verfügbar."));
+        return;
+    }
+
+    const auto answer = QMessageBox::question(
+        this,
+        QStringLiteral("CD ausleihen"),
+        QStringLiteral("Soll \"%1\" an Ausleiher %2 ausgeliehen werden?")
+            .arg(toQString(cd.getTitle()))
+            .arg(borrowerId_),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No);
+    if (answer != QMessageBox::Yes) return;
+
+    std::uint32_t loanId = 0;
+    const ServiceError error = service_.loanCD(
+        borrowerId_, cd.getId(), nowEpochSeconds(), loanId);
+
+    if (error != ServiceError::None) {
+        showServiceError(this, error, QStringLiteral("CD ausleihen"));
+        refresh();
+        emit loansChanged();
+        return;
+    }
+
+    refresh();
+    emit loansChanged();
 }
 
 } // namespace libster::gui

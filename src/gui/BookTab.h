@@ -23,11 +23,17 @@ public:
     explicit BookTab(LibraryService& service, QWidget* parent = nullptr);
 
     void refresh();
+    void setBorrowerId(std::uint32_t borrowerId);
+
+signals:
+    void loansChanged();
 
 private:
     void addBook();
     void editSelected();
     void deleteSelected();
+    void loanSelected();
+    void handleDoubleClick();
     void updateActions();
     int selectedRow() const;
 
@@ -37,8 +43,11 @@ private:
     QTableView* table_ = nullptr;
     QLabel* countLabel_ = nullptr;
     QTimer* searchTimer_ = nullptr;
+    QPushButton* addButton_ = nullptr;
     QPushButton* editButton_ = nullptr;
     QPushButton* deleteButton_ = nullptr;
+    QPushButton* loanButton_ = nullptr;
+    std::uint32_t borrowerId_ = 0;
 };
 
 } // namespace libster::gui

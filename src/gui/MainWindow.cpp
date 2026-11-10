@@ -104,8 +104,14 @@ void MainWindow::createLoanSidebar() {
 
     addDockWidget(Qt::LeftDockWidgetArea, dock);
 
+    connect(loanSidebar_, &LoanSidebar::borrowerChanged, bookTab_, &BookTab::setBorrowerId);
+    connect(loanSidebar_, &LoanSidebar::borrowerChanged, cdTab_, &CDTab::setBorrowerId);
+
     connect(loanSidebar_, &LoanSidebar::loansChanged,bookTab_, &BookTab::refresh);
     connect(loanSidebar_, &LoanSidebar::loansChanged,cdTab_, &CDTab::refresh);
+
+    connect(bookTab_, &BookTab::loansChanged, loanSidebar_, &LoanSidebar::refresh);
+    connect(cdTab_, &CDTab::loansChanged, loanSidebar_, &LoanSidebar::refresh);
 }
 
 } // namespace libster::gui
