@@ -7,8 +7,9 @@
 
 class QAction;
 class QCloseEvent;
-class QDockWidget;
+class QEvent;
 class QLabel;
+class QSplitter;
 
 namespace libster {
     class LibraryService;
@@ -30,16 +31,19 @@ public:
 
 protected:
     void closeEvent(QCloseEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     void createTabs();
     void createLoanSidebar();
     void createMenus();
     void createStatusBar();
+    void dockLoanSidebar();
+    void floatLoanSidebar();
+    void updateLoanSidebarActions();
     void restoreWindowState();
     void saveWindowState();
     void updateBorrowerStatus(std::uint32_t borrowerId);
-    void updateLoanDockAction();
 
     LibraryService& service_;
     QString dataDirectory_;
@@ -47,11 +51,13 @@ private:
     BookTab* bookTab_ = nullptr;
     CDTab* cdTab_ = nullptr;
     BorrowerTab* borrowerTab_ = nullptr;
-    LoanSidebar* loanSidebar_ = nullptr;
-    QDockWidget* loanDock_ = nullptr;
     ReportTab* reportTab_ = nullptr;
+    LoanSidebar* loanSidebar_ = nullptr;
+    QSplitter* splitter_ = nullptr;
+    QWidget* loanWindow_ = nullptr;
     QLabel* borrowerStatusLabel_ = nullptr;
-    QAction* loanDockAction_ = nullptr;
+    QAction* floatLoanAction_ = nullptr;
+    QAction* dockLoanAction_ = nullptr;
 
 };
 
