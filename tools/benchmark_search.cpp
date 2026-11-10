@@ -26,6 +26,7 @@ using Clock = std::chrono::steady_clock;
 
 struct Options {
     std::string dataDir;
+    std::string query;
     std::string logPath = "performance.log";
     std::uint32_t runs  = 3;
     std::uint32_t thresholdMs = 150;
@@ -35,6 +36,7 @@ struct Options {
 void printUsage() {
     std::cout
         << "Aufruf: libster_benchmark <datenverzeichnis> [Optionen]\n"
+        << "  --query TEXT      Suchbegriff (Standard: leer = alle Buecher)\n"
         << "  --runs N          Anzahl Messlaeufe (Standard 3)\n"
         << "  --threshold-ms N  Zeitgrenze in ms (Standard 150)\n"
         << "  --min-records N   Mindestanzahl Treffer (Standard 55000)\n"
@@ -87,11 +89,11 @@ struct RunResult {
     double milliseconds = 0.0;
 };
 
-RunResult runSearch(LibraryService& service) {
+RunResult runSearch(LibraryService& service, const std::string& query) {
     std::vector<Book> books;
 
     const auto start = Clock::now();
-    const ServiceError error = service.findBooks("", books);
+    const ServiceError error = service.findBooks(query, books);
     const auto end = Clock::now();
 
     const std::chrono::duration<double, std::milli> elapsed = end - start;
@@ -138,6 +140,12 @@ int main(int argc, char** argv) {
                 return 1;
             }
             options.logPath = argv[++i];
+        } else if (arg == "--query") {
+            if (i + 1 >= argc) {
+                std::cerr << "Fehlender Wert fuer --query\n";
+                return 1;
+            }
+            options.query = argv[++i];
         } else if (!arg.empty() && arg.front() == '-') {
             std::cerr << "Unbekannte Option: " << arg << '\n';
             printUsage();
@@ -173,7 +181,7 @@ int main(int argc, char** argv) {
 
     // Ein Warmlauf, damit die Datei im Page-Cache liegt und
     // Allokationen bereits stattgefunden haben.
-    const RunResult warmup = runSearch(service);
+    const RunResult warmup = runSearch(service, options.query);
     if (warmup.error != ServiceError::None) {
         std::cerr << "Suche fehlgeschlagen: "
                   << libster::toString(warmup.error) << '\n';
@@ -181,6 +189,7 @@ int main(int argc, char** argv) {
     }
 
     std::cout << "Datenverzeichnis: " << options.dataDir << '\n'
+              << "Query: \"" << options.query << "\"\n"
               << "Warmup: " << warmup.records << " Treffer in "
               << formatMilliseconds(warmup.milliseconds) << " ms\n\n";
 
@@ -196,7 +205,7 @@ int main(int argc, char** argv) {
     double best = 0.0;
 
     for (std::uint32_t run = 1; run <= options.runs; ++run) {
-        const RunResult result = runSearch(service);
+        const RunResult result = runSearch(service, options.query);
 
         const bool pass =
             result.error == ServiceError::None &&
@@ -221,6 +230,7 @@ int main(int argc, char** argv) {
 
         log << '[' << localTimestamp() << "] "
             << "data=" << options.dataDir
+            << " query=\"" << options.query << '"'
             << " records=" << result.records
             << " duration_ms=" << formatMilliseconds(result.milliseconds)
             << " threshold_ms=" << options.thresholdMs

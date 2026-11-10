@@ -1,5 +1,6 @@
 #include "gui/BookTab.h"
 
+#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -61,7 +62,6 @@ BookTab::BookTab(LibraryService& service, QWidget* parent) : QWidget(parent), se
     model_ = new BookTableModel(this);
 
     table_ = new QTableView(this);
-    table_->setHorizontalHeader(new TableHeaderView(Qt::Horizontal, table_));
     table_->setModel(model_);
     table_->setSelectionBehavior(QAbstractItemView::SelectRows);
     table_->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -156,6 +156,33 @@ void BookTab::addBook() {
     if (dialog.exec() != QDialog::Accepted) return;
 
     Book book = dialog.book();
+
+    // Gleiche ISBN ist erlaubt (Mehrfachexemplare), aber vorher nachfragen.
+    std::vector<Book> isbnMatches;
+    const ServiceError searchError =
+        service_.findBooks(book.getIsbn(), isbnMatches);
+    if (searchError != ServiceError::None) {
+        showServiceError(this, searchError, QStringLiteral("ISBN prüfen"));
+        return;
+    }
+
+    const bool duplicate = std::any_of(
+        isbnMatches.begin(), isbnMatches.end(),
+        [&book](const Book& other) { return other.getIsbn() == book.getIsbn(); });
+
+    if (duplicate) {
+        const auto answer = QMessageBox::question(
+            this,
+            QStringLiteral("ISBN bereits vorhanden"),
+            QStringLiteral(
+                "Ein Buch mit der ISBN %1 existiert bereits.\n\n"
+                "Soll trotzdem ein weiteres Exemplar angelegt werden?")
+                .arg(toQString(book.getIsbn())),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        if (answer != QMessageBox::Yes) return;
+    }
+
     const ServiceError error = service_.addBook(book);
     if (error != ServiceError::None) {
         showServiceError(this, error, QStringLiteral("Buch anlegen"));
@@ -234,6 +261,20 @@ void BookTab::loanSelected() {
 
     std::uint32_t loanId = 0;
     const ServiceError error = service_.loanBook(borrowerId_, book.getId(), nowEpochSeconds(), loanId);
+
+    if (error == ServiceError::PartialWrite) {
+        QMessageBox::warning(
+            this,
+            QStringLiteral("Buch ausleihen"),
+            QStringLiteral(
+                "Die Ausleihe wurde gespeichert, aber das Buch konnte nicht "
+                "als \"ausgeliehen\" markiert werden.\n\n"
+                "Bitte den Vorgang in der Seitenleiste prüfen oder dort "
+                "zurücknehmen."));
+        refresh();
+        emit loansChanged();
+        return;
+    }
 
     if (error != ServiceError::None) {
         showServiceError(this, error, QStringLiteral("Buch ausleihen"));

@@ -254,6 +254,20 @@ void CDTab::loanSelected() {
     const ServiceError error = service_.loanCD(
         borrowerId_, cd.getId(), nowEpochSeconds(), loanId);
 
+    if (error == ServiceError::PartialWrite) {
+        QMessageBox::warning(
+            this,
+            QStringLiteral("CD ausleihen"),
+            QStringLiteral(
+                "Die Ausleihe wurde gespeichert, aber die CD konnte nicht "
+                "als \"ausgeliehen\" markiert werden.\n\n"
+                "Bitte den Vorgang in der Seitenleiste prüfen oder dort "
+                "zurücknehmen."));
+        refresh();
+        emit loansChanged();
+        return;
+    }
+
     if (error != ServiceError::None) {
         showServiceError(this, error, QStringLiteral("CD ausleihen"));
         refresh();

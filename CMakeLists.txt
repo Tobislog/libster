@@ -22,6 +22,7 @@ add_library(libster_core STATIC
     src/core/Version.cpp
     src/core/TimeUtil.cpp
     src/core/Validation.cpp
+    src/core/TextSearch.cpp
     src/core/model/Borrower.cpp
     src/core/model/Medium.cpp
     src/core/model/Book.cpp
@@ -90,6 +91,7 @@ add_executable(libster_tests
     tests/test_loan_transaction.cpp
     tests/test_library_service.cpp
     tests/test_validation.cpp
+    tests/test_textsearch.cpp
 )
 target_link_libraries(libster_tests PRIVATE libster_core)
 libster_enable_warnings(libster_tests)

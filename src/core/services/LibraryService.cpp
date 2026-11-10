@@ -7,6 +7,7 @@
 #include <system_error>
 #include <utility>
 
+#include "core/TextSearch.h"
 #include "core/model/Medium.h"
 #include "core/model/Book.h"
 #include "core/persistence/BorrowerRecord.h"
@@ -31,21 +32,6 @@ ServiceError toServiceError(IoError error) noexcept {
         case IoError::InvalidId:    return ServiceError::NotFound;
         default:                    return ServiceError::Persistence;
     }
-}
-
-std::string toLowerAscii(std::string_view text) {
-    std::string lowered;
-    lowered.reserve(text.size());
-
-    for (unsigned char c : text) {
-        lowered.push_back(static_cast<char>(std::tolower(c)));
-    }
-
-    return lowered;
-}
-
-bool containsCaseInsensitive(std::string_view haystack, const std::string& loweredNeedle) {
-    return toLowerAscii(haystack).find(loweredNeedle) != std::string::npos;
 }
 
 bool parseId(std::string_view text, std::uint32_t& id) {
@@ -192,7 +178,7 @@ ServiceError LibraryService::findBorrowers(const std::string& query, std::vector
     out.clear();
     if (!isOpen()) return ServiceError::NotOpen;
 
-    const std::string needle = toLowerAscii(query);
+    const std::string needle = foldForSearch(query);
 
     std::uint32_t idQuery = 0;
     const bool hasIdQuery = parseId(query, idQuery);
@@ -204,9 +190,9 @@ ServiceError LibraryService::findBorrowers(const std::string& query, std::vector
             if (hasIdQuery && record.id == idQuery) return true;
             if (needle.empty()) return true;
 
-            return containsCaseInsensitive(fixedToString(record.lastName), needle)
-                || containsCaseInsensitive(fixedToString(record.firstName), needle)
-                || containsCaseInsensitive(fixedToString(record.email), needle);
+            return containsFolded(fixedToString(record.lastName), needle)
+                || containsFolded(fixedToString(record.firstName), needle)
+                || containsFolded(fixedToString(record.email), needle);
         },
         records
     );
@@ -305,7 +291,7 @@ ServiceError LibraryService::findBooks(const std::string& query, std::vector<Boo
     out.clear();
     if (!isOpen()) return ServiceError::NotOpen;
 
-    const std::string needle = toLowerAscii(query);
+    const std::string needle = foldForSearch(query);
 
     std::uint32_t idQuery = 0;
     const bool hasIdQuery = parseId(query, idQuery);
@@ -317,10 +303,10 @@ ServiceError LibraryService::findBooks(const std::string& query, std::vector<Boo
             if (hasIdQuery && record.id == idQuery) return true;
             if (needle.empty()) return true;
 
-            return containsCaseInsensitive(fixedToString(record.title), needle)
-                || containsCaseInsensitive(fixedToString(record.authors), needle)
-                || containsCaseInsensitive(fixedToString(record.isbn), needle)
-                || containsCaseInsensitive(fixedToString(record.publisher), needle);
+            return containsFolded(fixedToString(record.title), needle)
+                || containsFolded(fixedToString(record.authors), needle)
+                || containsFolded(fixedToString(record.isbn), needle)
+                || containsFolded(fixedToString(record.publisher), needle);
         },
         records
     );
@@ -423,7 +409,7 @@ ServiceError LibraryService::findCDs(const std::string& query, std::vector<CD>& 
     out.clear();
     if (!isOpen()) return ServiceError::NotOpen;
 
-    const std::string needle = toLowerAscii(query);
+    const std::string needle = foldForSearch(query);
 
     std::uint32_t idQuery = 0;
     const bool hasIdQuery = parseId(query, idQuery);
@@ -435,10 +421,10 @@ ServiceError LibraryService::findCDs(const std::string& query, std::vector<CD>& 
             if (hasIdQuery && record.id == idQuery) return true;
             if (needle.empty()) return true;
 
-            return containsCaseInsensitive(fixedToString(record.title), needle)
-                || containsCaseInsensitive(fixedToString(record.performer), needle)
-                || containsCaseInsensitive(fixedToString(record.publisher), needle)
-                || containsCaseInsensitive(fixedToString(record.location), needle);
+            return containsFolded(fixedToString(record.title), needle)
+                || containsFolded(fixedToString(record.performer), needle)
+                || containsFolded(fixedToString(record.publisher), needle)
+                || containsFolded(fixedToString(record.location), needle);
         },
         records
     );

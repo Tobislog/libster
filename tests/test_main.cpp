@@ -12,6 +12,7 @@ void runLoanTransactionTests(libster::test::TestContext& t);
 void runValidationTests(libster::test::TestContext& t);
 void runLibraryServiceTests(libster::test::TestContext& t);
 void runTimeUtilTests(libster::test::TestContext& t);
+void runTextSearchTests(libster::test::TestContext& t);
 
 int main() {
     libster::test::TestContext t;
@@ -25,6 +26,7 @@ int main() {
     runValidationTests(t);
     runLibraryServiceTests(t);
     runTimeUtilTests(t);
+    runTextSearchTests(t);
 
     if (t.passed()) {
         std::cout << "Alle Tests bestanden.\n";

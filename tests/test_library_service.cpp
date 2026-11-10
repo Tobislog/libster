@@ -810,6 +810,34 @@ void testFindBorrowersNumericQueryMatchesId(TestContext& t) {
     CHECK(t, hits.empty());
 }
 
+void testFindBorrowersUmlautFolded(TestContext& t) {
+    TempDir dir("libster_service_find_umlaut");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Borrower umlaut = makeBorrower("Bäcker", "Jürgen", "juergen@example.org");
+    Borrower plain = makeBorrower("Schmidt", "Anna", "anna@example.org");
+    CHECK(t, service.addBorrower(umlaut) == ServiceError::None);
+    CHECK(t, service.addBorrower(plain) == ServiceError::None);
+
+    std::vector<Borrower> hits;
+
+    CHECK(t, service.findBorrowers("BÄCKER", hits) == ServiceError::None);
+    CHECK(t, hits.size() == 1u);
+
+    CHECK(t, service.findBorrowers("backer", hits) == ServiceError::None);
+    CHECK(t, hits.size() == 1u);
+    if (hits.size() == 1u) {
+        CHECK(t, hits[0].getLastName() == "Bäcker");
+    }
+
+    CHECK(t, service.findBorrowers("JÜRGEN", hits) == ServiceError::None);
+    CHECK(t, hits.size() == 1u);
+
+    CHECK(t, service.findBorrowers("jurgen", hits) == ServiceError::None);
+    CHECK(t, hits.size() == 1u);
+}
+
 void testFindBorrowersNoMatch(TestContext& t) {
     TempDir dir("libster_service_find_none");
     LibraryService service;
@@ -1121,6 +1149,54 @@ void testFindBooksNoMatch(TestContext& t) {
     std::vector<Book> hits(2, makeBook("Old"));
     CHECK(t, service.findBooks("zzz", hits) == ServiceError::None);
     CHECK(t, hits.empty());
+}
+
+void testFindBooksUmlautFolded(TestContext& t) {
+    TempDir dir("libster_service_book_find_umlaut");
+    LibraryService service;
+    CHECK(t, service.open(dir.path()) == IoError::None);
+
+    Book umlaut = makeBook(
+        "Müller",
+        "Jürgen Müßig",
+        "ISBN-UML",
+        "Königshausen");
+    Book sharpS = makeBook(
+        "Straße der Träume",
+        "Anna Schmidt",
+        "ISBN-SSZ",
+        "Beispielverlag");
+    CHECK(t, service.addBook(umlaut) == ServiceError::None);
+    CHECK(t, service.addBook(sharpS) == ServiceError::None);
+
+    std::vector<Book> hits;
+
+    CHECK(t, service.findBooks("MÜLLER", hits) == ServiceError::None);
+    CHECK(t, hits.size() == 1u);
+    if (hits.size() == 1u) {
+        CHECK(t, hits[0].getTitle() == "Müller");
+    }
+
+    CHECK(t, service.findBooks("muller", hits) == ServiceError::None);
+    CHECK(t, hits.size() == 1u);
+
+    CHECK(t, service.findBooks("müßig", hits) == ServiceError::None);
+    CHECK(t, hits.size() == 1u);
+
+    CHECK(t, service.findBooks("MUSSIG", hits) == ServiceError::None);
+    CHECK(t, hits.size() == 1u);
+
+    CHECK(t, service.findBooks("konigshausen", hits) == ServiceError::None);
+    CHECK(t, hits.size() == 1u);
+
+    CHECK(t, service.findBooks("strasse", hits) == ServiceError::None);
+    CHECK(t, hits.size() == 1u);
+    if (hits.size() == 1u) {
+        CHECK(t, hits[0].getTitle() == "Straße der Träume");
+    }
+
+    CHECK(t, service.findBooks("TRAUME", hits) == ServiceError::None);
+    CHECK(t, hits.size() == 1u);
 }
 
 void testLoanBook(TestContext& t) {
@@ -1607,6 +1683,7 @@ void runLibraryServiceTests(libster::test::TestContext& t) {
     testFindBorrowersSearchesEmail(t);
     testFindBorrowersNumericQueryMatchesId(t);
     testFindBorrowersNoMatch(t);
+    testFindBorrowersUmlautFolded(t);
 
     testAddBookAssignsIdAndRoundtrip(t);
     testAddBookRejectsAssignedId(t);
@@ -1622,6 +1699,7 @@ void runLibraryServiceTests(libster::test::TestContext& t) {
     testFindBooksSubstringCaseInsensitive(t);
     testFindBooksNumericQueryMatchesId(t);
     testFindBooksNoMatch(t);
+    testFindBooksUmlautFolded(t);
     testLoanBook(t);
 
     testAddCDAssignsIdAndRoundtrip(t);

@@ -114,7 +114,7 @@ void LoanSidebar::login() {
             QStringLiteral("Anmeldung"),
             QStringLiteral(
                 "Keine Ausleiher-ID %1 gefunden.\n"
-                "Bitte die Id prüfen oder im Tab \"Ausleiher\" suchen.")
+                "Bitte die ID prüfen oder im Tab \"Ausleiher\" suchen.")
                 .arg(id)
             );
             idEdit_->selectAll();
@@ -201,6 +201,19 @@ void LoanSidebar::returnSelected() {
 
     const ServiceError error =
         service_.returnLoan(entry.loanId, nowEpochSeconds());
+
+    if (error == ServiceError::PartialWrite) {
+        QMessageBox::warning(
+            this,
+            QStringLiteral("Rückgabe"),
+            QStringLiteral(
+                "Die Rückgabe wurde gespeichert, aber das Medium konnte nicht "
+                "wieder als \"verfügbar\" markiert werden.\n\n"
+                "Bitte den Datensatz im Bücher- bzw. CD-Tab prüfen."));
+        refresh();
+        return;
+    }
+
     if (error != ServiceError::None) {
         showServiceError(this, error, QStringLiteral("Rückgabe"));
         return;
