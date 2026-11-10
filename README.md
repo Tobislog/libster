@@ -11,7 +11,8 @@ vollständig Qt-frei und separat testbar.
 - Suche in Büchern und CDs (Titel, Autor/Interpret, ISBN, Verlag, Standort)
 - Soft Delete mit Schutz vor dem Löschen von Medien mit offenen Ausleihen
 - Zentrale Validierung (Pflichtfelder, Feldlängen, E-Mail, ISBN-10/ISBN-13)
-- Ausleiherverwaltung, Ausleihe/Rückgabe und Tagesbericht (in Arbeit)
+- Ausleiherverwaltung, Ausleihe/Rückgabe
+- Tagesbericht mit Ausleihen und Rückgaben pro Tag
 
 ## Technik
 

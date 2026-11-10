@@ -13,6 +13,7 @@ class BookTab;
 class CDTab;
 class BorrowerTab;
 class LoanSidebar;
+class ReportTab;
 
 class MainWindow final : public QMainWindow {
     Q_OBJECT
@@ -33,6 +34,7 @@ private:
     CDTab* cdTab_ = nullptr;
     BorrowerTab* borrowerTab_ = nullptr;
     LoanSidebar* loanSidebar_ = nullptr;
+    ReportTab* reportTab_ = nullptr;
 
 };
 

@@ -66,6 +66,8 @@ qt_add_executable(libster
     src/gui/LoanTableModel.h
     src/gui/LoanSidebar.cpp
     src/gui/LoanSidebar.h
+    src/gui/ReportTab.cpp
+    src/gui/ReportTab.h
 )
 target_link_libraries(libster PRIVATE
     libster_core

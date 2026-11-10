@@ -5,14 +5,12 @@
 #include <QAction>
 #include <QDir>
 #include <QDockWidget>
-#include <QFont>
 #include <QKeySequence>
 #include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
 #include <QStatusBar>
 #include <QTabWidget>
-#include <QVBoxLayout>
 #include <QWidget>
 
 #include "core/services/LibraryService.h"
@@ -20,26 +18,7 @@
 #include "gui/CDTab.h"
 #include "gui/BorrowerTab.h"
 #include "gui/LoanSidebar.h"
-
-namespace {
-
-QWidget* makePlaceholderTab(const QString& text) {
-    auto* page = new QWidget;
-    auto* layout = new QVBoxLayout(page);
-
-    auto* label = new QLabel(text, page);
-    label->setAlignment(Qt::AlignCenter);
-    label->setWordWrap(true);
-
-    QFont font = label->font();
-    font.setPointSize(font.pointSize() +2);
-    label->setFont(font);
-
-    layout->addWidget(label);
-    return page;
-} 
-    
-} // namespace
+#include "gui/ReportTab.h"
 
 namespace libster::gui {
 
@@ -63,11 +42,12 @@ void MainWindow::createTabs() {
     bookTab_ = new BookTab(service_, tabs);
     cdTab_ = new CDTab(service_, tabs);
     borrowerTab_ = new BorrowerTab(service_, tabs);
+    reportTab_ = new ReportTab(service_, tabs);
     
     tabs->addTab(bookTab_, QStringLiteral("Bücher"));
     tabs->addTab(cdTab_, QStringLiteral("CDs"));
     tabs->addTab(borrowerTab_, QStringLiteral("Ausleiher"));
-    tabs->addTab(makePlaceholderTab(QStringLiteral("Das Berichtsmodul folgt in M5.5.")), QStringLiteral("Bericht"));
+    tabs->addTab(reportTab_, QStringLiteral("Bericht"));
 
     setCentralWidget(tabs);
 }
