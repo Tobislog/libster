@@ -94,9 +94,6 @@ CDTab::CDTab(LibraryService& service, QWidget* parent)
     connect(table_->selectionModel(), &QItemSelectionModel::selectionChanged,
             this, [this] { updateActions(); });
 
-    refresh();
-
-    table_->resizeColumnsToContents();
     table_->horizontalHeader()->setSectionResizeMode(
         CDTableModel::Title, QHeaderView::Stretch);
 }
@@ -111,6 +108,15 @@ void CDTab::setBorrowerId(std::uint32_t borrowerId) {
     loanButton_->setVisible(lending);
 
     updateActions();
+}
+
+void CDTab::showEvent(QShowEvent* event) {
+     QWidget::showEvent(event);
+    if (loaded_) return;
+
+    loaded_ = true;
+    refresh();
+    table_->resizeColumnsToContents();
 }
 
 void CDTab::refresh() {

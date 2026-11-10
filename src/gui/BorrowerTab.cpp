@@ -87,9 +87,6 @@ BorrowerTab::BorrowerTab(LibraryService& service, QWidget* parent)
     connect(table_->selectionModel(), &QItemSelectionModel::selectionChanged,
             this, [this] { updateActions(); });
 
-    refresh();
-
-    table_->resizeColumnsToContents();
     table_->horizontalHeader()->setSectionResizeMode(
         BorrowerTableModel::LastName, QHeaderView::Stretch);
 }
@@ -114,6 +111,15 @@ void BorrowerTab::refresh() {
             : QStringLiteral("%1 Ausleiher").arg(count));
 
     updateActions();
+}
+
+void BorrowerTab::showEvent(QShowEvent* event) {
+    QWidget::showEvent(event);
+    if (loaded_) return;
+
+    loaded_ = true;
+    refresh();
+    table_->resizeColumnsToContents();
 }
 
 int BorrowerTab::selectedRow() const {

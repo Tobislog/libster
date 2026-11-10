@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
         QMessageBox::critical(
             nullptr,
             QStringLiteral("Datenverzeichnis"),
-            QStringLiteral("Das Daenverzeichnis konnte nicht geöffnet werden: \n%1").arg(libster::toString(error)));
+            QStringLiteral("Das Datenverzeichnis konnte nicht geöffnet werden: \n%1").arg(libster::toString(error)));
         return 1;
     }
 

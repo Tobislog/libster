@@ -11,6 +11,7 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QShowEvent>
 #include <QTableView>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -86,9 +87,6 @@ BookTab::BookTab(LibraryService& service, QWidget* parent) : QWidget(parent), se
     connect(table_, &QTableView::doubleClicked, this, &BookTab::handleDoubleClick);
     connect(table_->selectionModel(), &QItemSelectionModel::selectionChanged, this, [this] { updateActions(); });
 
-    refresh();
-
-    table_->resizeColumnsToContents();
     table_->horizontalHeader()->setSectionResizeMode(BookTableModel::Title, QHeaderView::Stretch);
 }
 
@@ -104,6 +102,14 @@ void BookTab::setBorrowerId(std::uint32_t borrowerId) {
     updateActions();
 }
 
+void BookTab::showEvent (QShowEvent* event) {
+    QWidget::showEvent(event);
+    if (loaded_) return;
+
+    loaded_ = true;
+    refresh();
+    table_->resizeColumnsToContents();
+}
 void BookTab::refresh() {
     std::vector<Book> books;
     const ServiceError error = service_.findBooks(toStdString(searchEdit_->text()), books);

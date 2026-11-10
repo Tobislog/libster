@@ -105,6 +105,20 @@ void LoanSidebar::login() {
 
     std::optional<Borrower> found;
     const ServiceError error = service_.getBorrower(id, found);
+
+    if (error == ServiceError::NotFound) {
+        QMessageBox::warning(
+            this,
+            QStringLiteral("Anmeldung"),
+            QStringLiteral(
+                "Keine Ausleiher-ID %1 gefunden.\n"
+                "Bitte die Id prüfen oder im Tab \"Ausleiher\" suchen.")
+                .arg(id)
+            );
+            idEdit_->selectAll();
+            idEdit_->setFocus();
+            return;
+    }
     if (error != ServiceError::None) {
         showServiceError(this, error, QStringLiteral("Anmeldung"));
         return;

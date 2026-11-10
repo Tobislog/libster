@@ -5,6 +5,7 @@
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QShowEvent;
 class QTableView;
 class QTimer;
 
@@ -24,6 +25,9 @@ public:
 
     void refresh();
 
+protected:
+    void showEvent(QShowEvent* event) override;    
+
 private:
     void addBorrower();
     void editSelected();
@@ -39,6 +43,7 @@ private:
     QTimer* searchTimer_ = nullptr;
     QPushButton* editButton_ = nullptr;
     QPushButton* deleteButton_ = nullptr;
+    bool loaded_ = false;
 };
 
 } // namespace libster::gui

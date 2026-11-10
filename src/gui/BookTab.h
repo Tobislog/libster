@@ -7,6 +7,7 @@ class QLineEdit;
 class QPushButton;
 class QTableView;
 class QTimer;
+class QShowEvent;
 
 namespace libster {
     class LibraryService;
@@ -24,6 +25,9 @@ public:
 
     void refresh();
     void setBorrowerId(std::uint32_t borrowerId);
+
+protected:
+    void showEvent(QShowEvent* event) override;
 
 signals:
     void loansChanged();
@@ -48,6 +52,7 @@ private:
     QPushButton* deleteButton_ = nullptr;
     QPushButton* loanButton_ = nullptr;
     std::uint32_t borrowerId_ = 0;
+    bool loaded_ = false;
 };
 
 } // namespace libster::gui
