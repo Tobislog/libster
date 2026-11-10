@@ -22,6 +22,7 @@
 #include "core/services/LibraryService.h"
 #include "gui/GuiUtil.h"
 #include "gui/LoanTableModel.h"
+#include "gui/TableHeaderView.h"
 
 namespace libster::gui {
 
@@ -53,6 +54,7 @@ LoanSidebar::LoanSidebar(LibraryService& service, QWidget* parent)
     model_ = new LoanTableModel(this);
 
     table_ = new QTableView(this);
+    table_->setHorizontalHeader(new TableHeaderView(Qt::Horizontal, table_));
     table_->setModel(model_);
     table_->setSelectionBehavior(QAbstractItemView::SelectRows);
     table_->setSelectionMode(QAbstractItemView::SingleSelection);

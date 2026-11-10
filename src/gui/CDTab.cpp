@@ -22,6 +22,7 @@
 #include "gui/CDDialog.h"
 #include "gui/CDTableModel.h"
 #include "gui/GuiUtil.h"
+#include "gui/TableHeaderView.h"
 
 namespace libster::gui {
 
@@ -61,6 +62,7 @@ CDTab::CDTab(LibraryService& service, QWidget* parent)
     model_ = new CDTableModel(this);
 
     table_ = new QTableView(this);
+    table_->setHorizontalHeader(new TableHeaderView(Qt::Horizontal, table_));
     table_->setModel(model_);
     table_->setSelectionBehavior(QAbstractItemView::SelectRows);
     table_->setSelectionMode(QAbstractItemView::SingleSelection);

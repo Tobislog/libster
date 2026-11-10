@@ -143,6 +143,9 @@ void MainWindow::createMenus() {
 
 void MainWindow::createStatusBar() {
     borrowerStatusLabel_ = new QLabel(QStringLiteral("Nicht angemeldet"), this);
+    // Abstand zur linken Kante: sonst liegt der erste Buchstabe im
+    // abgerundeten Eckbereich der Statusleiste.
+    borrowerStatusLabel_->setContentsMargins(12, 0, 8, 0);
     statusBar()->addWidget(borrowerStatusLabel_);
 
     const QString state = service_.isOpen() ? QStringLiteral("geöffnet") : QStringLiteral("nicht geöffnet");

@@ -23,6 +23,7 @@
 #include "gui/BookDialog.h"
 #include "gui/BookTableModel.h"
 #include "gui/GuiUtil.h"
+#include "gui/TableHeaderView.h"
 
 namespace libster::gui {
 
@@ -60,6 +61,7 @@ BookTab::BookTab(LibraryService& service, QWidget* parent) : QWidget(parent), se
     model_ = new BookTableModel(this);
 
     table_ = new QTableView(this);
+    table_->setHorizontalHeader(new TableHeaderView(Qt::Horizontal, table_));
     table_->setModel(model_);
     table_->setSelectionBehavior(QAbstractItemView::SelectRows);
     table_->setSelectionMode(QAbstractItemView::SingleSelection);

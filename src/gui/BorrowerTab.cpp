@@ -20,6 +20,7 @@
 #include "gui/BorrowerDialog.h"
 #include "gui/BorrowerTableModel.h"
 #include "gui/GuiUtil.h"
+#include "gui/TableHeaderView.h"
 
 namespace libster::gui {
 
@@ -55,6 +56,7 @@ BorrowerTab::BorrowerTab(LibraryService& service, QWidget* parent)
     model_ = new BorrowerTableModel(this);
 
     table_ = new QTableView(this);
+    table_->setHorizontalHeader(new TableHeaderView(Qt::Horizontal, table_));
     table_->setModel(model_);
     table_->setSelectionBehavior(QAbstractItemView::SelectRows);
     table_->setSelectionMode(QAbstractItemView::SingleSelection);
